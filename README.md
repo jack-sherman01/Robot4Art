@@ -9,9 +9,10 @@ roughly five brush strokes, which a robot arm then paints live in about two
 minutes. Built for public demonstration at [CoRL](https://www.corl.org/)
 (Conference on Robot Learning).
 
-**[Try the composition step →](https://jack-sherman01.github.io/Robot4Art/)**
-(runs entirely in your browser; see [How it works](#how-it-works) below for
-what it does and doesn't cover)
+**[Try it live →](https://jack-sherman01.github.io/Robot4Art/)** — generate
+a painting in your browser, and watch a video of the Isaac Sim simulation
+actually painting one. See [How it works](#how-it-works) below for what the
+demo does and doesn't cover.
 
 Robot4Art is a collaboration between the Safe AI Lab at Carnegie Mellon
 University, 破壳机器人 (Poke Robotics), and 洛可可创新设计集团 (LKK Design
@@ -42,7 +43,7 @@ published in this repository.
 | Piece | Status |
 | --- | --- |
 | Semantic composition (`sim/composition.py`) | Working. Deterministic grammar-based composer; the LLM call the design calls for is stubbed with a deterministic function (no model API access yet) — same answers always produce the same artwork. |
-| Web demo (`docs/`) | Working. JavaScript port of the composition step, published via GitHub Pages. No backend. |
+| Web demo (`docs/`) | Working. JavaScript port of the composition step plus a video of the Isaac Sim run, published via GitHub Pages. No backend. |
 | Isaac Sim validation (`sim/franka_paint_sim.py`) | Working, via Docker (see [`sim/README.md`](sim/README.md)). Verified end-to-end with a simulated Franka arm: all 5 strokes execute and the recorded trajectory tracks the intended composition. Motion only — no ink/paint deposition model yet. |
 | Kinova / xArm adapters | Not started. |
 | Physical hardware | Not started. |

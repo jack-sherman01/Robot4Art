@@ -42,12 +42,26 @@ ink/paint deposition model yet, so nothing is actually marked on the
 virtual canvas. There is also a small systematic offset between intended
 and executed traces, likely from RMPFlow's reactive convergence behavior.
 
+**Video for the website (`render_paint_video.py`): working**, but not the
+way it was first attempted. An Isaac Sim camera render was tried
+extensively against this project's Docker setup (several camera-binding
+approaches, explicit scene lighting, forcing the Replicator orchestrator
+to step) -- every attempt returned an identical, scene-independent
+placeholder frame regardless of camera position/orientation, strongly
+suggesting the offscreen render product isn't actually wired to the stage
+in this headless container configuration. Revisit if that gets resolved.
+In the meantime, `render_paint_video.py` animates the *real* recorded
+trace from `trace.json` with matplotlib + ffmpeg instead: a pen marker
+traces the actual simulated end-effector path, drawing each stroke in its
+color. Authentic data, just not a 3D render. Output feeds directly into
+`docs/media/` for the GitHub Pages site.
+
 **Not yet done:** Kinova and xArm adapters (the proposal's robot-agnostic
 execution layer), a real model call in `derive_brief`, wiring
-`composition.py`'s output into `franka_paint_sim.py`, video capture for
-the website, and real-time-budget validation against the ~2 minute
-target (this run's *simulated* time was ~164s, which is not directly
-comparable to real wall-clock execution speed).
+`composition.py`'s output into `franka_paint_sim.py`, an actual Isaac Sim
+camera render (see above), and real-time-budget validation against the
+~2 minute target (this run's *simulated* time was ~164s, which is not
+directly comparable to real wall-clock execution speed).
 
 ## Files
 
@@ -72,7 +86,11 @@ comparable to real wall-clock execution speed).
   `franka_paint_sim.py` and as a building block for `composition.py`.
 - `franka_paint_sim.py` -- the Isaac Sim standalone script that actually
   runs the simulation.
-- `output/` -- generated run artifacts (trace JSON, plots), gitignored.
+- `render_paint_video.py` -- animates `output/trace.json` into an MP4
+  (no Isaac Sim needed, just the trace file from a prior run). Used to
+  produce `docs/media/paint_video.mp4` for the website.
+- `output/` -- generated run artifacts (trace JSON, plots, video),
+  gitignored.
 
 ## Running the composition preview (no simulator needed)
 
@@ -110,3 +128,19 @@ this shared workstation.
 Output: `sim/output/trace.json` (every simulated end-effector pose) and
 `sim/output/paint_trace.png` (intended vs. executed overlay, the main
 thing to eyeball after a run).
+
+## Rendering the painting video (no simulator needed)
+
+Reads `sim/output/trace.json` from a prior `franka_paint_sim.py` run:
+
+```bash
+python3 sim/render_paint_video.py
+```
+
+Writes `sim/output/paint_video.mp4`. To update the copies published on
+the website, also copy the output into `docs/media/`:
+
+```bash
+cp sim/output/paint_video.mp4 docs/media/paint_video.mp4
+ffmpeg -y -sseof -1 -i sim/output/paint_video.mp4 -frames:v 1 docs/media/paint_poster.png
+```

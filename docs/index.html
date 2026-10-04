@@ -81,6 +81,32 @@
     </dl>
   </section>
 
+  <section class="panel" id="simulation">
+    <h2>Watch it paint</h2>
+    <p class="panel-note">
+      Recorded from this project's NVIDIA Isaac Sim validation run &mdash;
+      a simulated Franka Emika Panda arm executing a five-stroke plan via
+      the RMPFlow motion controller. This is the actual recorded
+      end-effector trajectory, not a mockup; see <code>sim/</code> in the
+      repository for the pipeline that produced it.
+    </p>
+    <div class="video-wrap">
+      <video controls loop muted playsinline poster="media/paint_poster.png">
+        <source src="media/paint_video.mp4" type="video/mp4">
+        Your browser doesn't support embedded video &mdash;
+        <a href="media/paint_video.mp4">download the video</a> directly.
+      </video>
+    </div>
+    <p class="panel-note small">
+      <a href="media/paint_trace.png" target="_blank" rel="noopener">See the intended-vs-executed trace overlay &rarr;</a>
+    </p>
+    <p class="panel-note small">
+      Simulation only, no physical robot or ink yet &mdash; the moving dot
+      traces where a pen or brush tip would be; the trail shows what it
+      would leave on the canvas.
+    </p>
+  </section>
+
   <section class="panel" id="how-it-works">
     <h2>How it works</h2>
     <ol class="steps">

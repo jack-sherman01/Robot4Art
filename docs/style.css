@@ -88,9 +88,32 @@ main {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 1.75rem;
+  box-shadow: 0 1px 2px rgba(22,21,19,0.03), 0 8px 24px -16px rgba(22,21,19,0.08);
+  transition: box-shadow 0.2s ease;
 }
 
-#how-it-works { grid-column: 1 / -1; }
+.panel:hover {
+  box-shadow: 0 1px 2px rgba(22,21,19,0.04), 0 12px 28px -14px rgba(22,21,19,0.12);
+}
+
+#how-it-works, #simulation { grid-column: 1 / -1; }
+
+.video-wrap {
+  margin: 1rem 0;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: #000;
+  max-width: 560px;
+}
+
+.video-wrap video {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.panel-note.small { font-size: 0.82rem; margin-bottom: 0; }
 
 h2 {
   margin-top: 0;
@@ -127,6 +150,12 @@ h2 {
   font-family: inherit;
   background: var(--paper);
   color: var(--ink);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.field input:hover,
+.field select:hover {
+  border-color: #C7C2B6;
 }
 
 .field input:focus,
@@ -149,7 +178,10 @@ button {
   border-radius: 6px;
   border: 1px solid transparent;
   cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
 }
+
+button:active { transform: translateY(1px); }
 
 button.primary {
   background: var(--ink);
