@@ -25,12 +25,18 @@ visitor's answer, not generated freely -- the robot holds a small set of
 interchangeable pens, not custom-mixed paint.
 
 The visitor also picks a **style** (`STYLES`: Modernist Gesture, Impressionist
-Bloom, Ink Wash Minimal), each tied to one grammar *and* one rendering
-treatment -- picking the grammar directly from a visitor choice turned out
-to look better and be more interactive than the earlier hash-derived 1-in-3
-assignment. `rationale_for(answers, brief)` generates a short, templated
-explanation of *why* the piece looks the way it does, tying the pen
-colors/grammar/accents back to the visitor's own answers -- the "why
+Bloom, Ink Wash Minimal), which picks the grammar directly -- this turned
+out to look better and be more interactive than the earlier hash-derived
+1-in-3 assignment. Separately, the visitor can pick a **brush/pen tool**
+(`BRUSHES`: Fine Pen, Marker, Brush, Watercolor Dabs), independent of
+style -- the robot's tool holder carries a few distinct tool types, not
+just a few colors, so style (composition shape) and tool (rendering
+width/taper/texture) compose freely; leaving the tool on "auto" falls
+back to a sensible per-style default (`_DEFAULT_BRUSH_FOR_STYLE`) that
+matches what shipped before the tool became independently selectable.
+`rationale_for(answers, brief)` generates a short, templated explanation
+of *why* the piece looks the way it does, tying the pen colors, grammar,
+accents, and chosen tool back to the visitor's own answers -- the "why
 created this way" explanation shown on the web demo as the piece is
 painted, standing in for the same explanation an LLM would write.
 
@@ -40,9 +46,10 @@ function of the answers (`derive_brief`) rather than an actual model call
 -- no model API key is available in this environment yet. Swapping in a
 real model only requires changing `derive_brief` and `rationale_for`;
 everything downstream (grammar rendering, Stroke output) is unaffected.
-Run `python3 sim/preview_compositions.py` to render example outputs (one
-per style) to `sim/output/compositions/examples.png` and print their
-rationale text, without needing Isaac Sim at all. The other path in the
+Run `python3 sim/preview_compositions.py` to render example outputs
+(including deliberately non-default style/brush pairings, to show
+they're independent choices) to `sim/output/compositions/examples.png`
+and print their rationale text, without needing Isaac Sim at all. The other path in the
 proposal (direct CLIPDraw-style stroke optimization against a
 vision-language embedding) is not implemented.
 

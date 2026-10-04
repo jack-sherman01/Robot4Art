@@ -89,6 +89,24 @@ STYLES = {
 }
 DEFAULT_STYLE = "modernist"
 
+# The robot's pen/brush holder carries a few distinct tool types, not just
+# a few colors -- a real design detail from Sec. "Robot-Agnostic
+# Execution" ("a multi-slot pen/brush holder ... a small set of common
+# pen colors"). Each tool renders differently (width profile, taper,
+# opacity), independent of which composition style/grammar is chosen, so
+# the visitor can pick style and tool separately. "floor" is the
+# minimum width as a fraction of max width (1.0 = constant width, no
+# taper; lower = tapers more toward the stroke's ends).
+BRUSHES = {
+    "fine_pen": {"label": "Fine Pen", "article": "a", "render": "line", "width_mult": 0.45, "floor": 0.85, "opacity": 0.98},
+    "marker": {"label": "Marker", "article": "a", "render": "line", "width_mult": 0.75, "floor": 0.55, "opacity": 0.92},
+    "brush": {"label": "Brush", "article": "a", "render": "line", "width_mult": 1.0, "floor": 0.22, "opacity": 0.95},
+    "watercolor": {"label": "Watercolor Dabs", "article": "", "render": "dabs", "width_mult": 1.0, "floor": 1.0, "opacity": 0.85},
+}
+# A tool that suits each style if the visitor doesn't override it --
+# matches what shipped before the tool became independently selectable.
+_DEFAULT_BRUSH_FOR_STYLE = {"modernist": "brush", "impressionist": "watercolor", "ink_wash": "fine_pen"}
+
 # A short, templated explanation of *why* the piece looks the way it does,
 # connecting the generated artwork back to the visitor's own answers.
 # Stands in for an LLM-written rationale for the same reason derive_brief
@@ -124,8 +142,9 @@ def rationale_for(answers: "PromptAnswers", brief: "ArtisticBrief") -> str:
     """A short, human-readable explanation tying the generated artwork
     back to the visitor's own answers -- displayed alongside the piece
     as it's painted, not just the finished result."""
-    template = _RATIONALE_TEMPLATES[brief.grammar]
+    template = _RATIONALE_TEMPLATES[brief.grammar] + " Laid down with {brush_article}{brush_label}."
     mood_phrase = answers.mood.strip() or "calm"
+    brush = BRUSHES[brief.brush]
     return template.format(
         primary=brief.pen_names[0],
         secondary=brief.pen_names[1],
@@ -134,6 +153,8 @@ def rationale_for(answers: "PromptAnswers", brief: "ArtisticBrief") -> str:
         mood_article=_article(mood_phrase),
         color=answers.favorite_color.strip(),
         city=answers.favorite_city.strip(),
+        brush_article=(brush["article"] + " ") if brush["article"] else "",
+        brush_label=brush["label"].lower(),
     )
 
 
@@ -177,6 +198,7 @@ class PromptAnswers:
     dream: str
     mood: str = ""
     style: str = DEFAULT_STYLE  # one of STYLES' keys
+    brush: str = ""  # one of BRUSHES' keys, or "" to use the style's default tool
 
 
 @dataclass
@@ -187,6 +209,7 @@ class ArtisticBrief:
     seed: int
     grammar: str  # which grammar function to use
     style: str = DEFAULT_STYLE  # the visitor-facing style name (STYLES key)
+    brush: str = ""  # the resolved tool name (BRUSHES key), independent of style
     pen_names: list[str] = field(default_factory=list)  # [primary, secondary] from STANDARD_PENS
     palette: list[str] = field(default_factory=list)  # [primary, secondary, "black"] hex
     scale: float = 1.0  # 0.9-1.15, overall composition size
@@ -207,6 +230,7 @@ def derive_brief(answers: PromptAnswers) -> ArtisticBrief:
 
     style = answers.style if answers.style in STYLES else DEFAULT_STYLE
     grammar = STYLES[style]["grammar"]
+    brush = answers.brush if answers.brush in BRUSHES else _DEFAULT_BRUSH_FOR_STYLE[style]
     scale = float(rng.uniform(0.9, 1.15))
     rotation_deg = float(rng.uniform(-15.0, 15.0))
     # A gentle off-center anchor (rule-of-thirds-ish) instead of always
@@ -217,6 +241,7 @@ def derive_brief(answers: PromptAnswers) -> ArtisticBrief:
         seed=seed,
         grammar=grammar,
         style=style,
+        brush=brush,
         pen_names=[primary_pen, secondary_pen],
         palette=palette,
         scale=scale,

@@ -3,12 +3,13 @@
 An interactive human-robot co-creation system for live minimalist painting.
 
 A visitor answers a few short, personal prompts — favorite color, favorite
-city, a current dream or aspiration — picks an artistic style, and picks a
-robot platform. The answers are composed into an original abstract artwork
-constrained to roughly ten brush strokes drawn with a small set of common
-pen colors (not custom-mixed paint), which a robot arm then paints live in
-a couple of minutes, alongside a short on-screen explanation of why the
-piece looks the way it does. Built for public demonstration at
+city, a current dream or aspiration — picks an artistic style, optionally
+picks a pen/brush tool, and picks a robot platform. The answers are
+composed into an original abstract artwork constrained to roughly ten
+brush strokes drawn with a small set of common pen colors (not
+custom-mixed paint), which a robot arm then paints live in a couple of
+minutes, alongside a short on-screen explanation of why the piece looks
+the way it does. Built for public demonstration at
 [CoRL](https://www.corl.org/) (Conference on Robot Learning).
 
 **[Try it live →](https://jack-sherman01.github.io/Robot4Art/)** — generate
@@ -24,8 +25,10 @@ Group).
 
 1. **Kiosk input.** A visitor answers a few short, personal prompts, picks
    a style (Modernist Gesture, Impressionist Bloom, or Ink Wash Minimal),
-   and picks a robot platform (Franka Emika Panda, Kinova Gen3, or
-   UFACTORY xArm).
+   optionally picks a pen/brush tool (Fine Pen, Marker, Brush, or
+   Watercolor Dabs — independent of style, since the robot's tool holder
+   carries a few distinct tool types, not just colors), and picks a robot
+   platform (Franka Emika Panda, Kinova Gen3, or UFACTORY xArm).
 2. **Semantic composition.** The answers are composed into an artistic
    brief — a palette and a stroke "grammar" tied to the chosen style — and
    rendered as an ordered list of ≤10 vector strokes in a small set of
