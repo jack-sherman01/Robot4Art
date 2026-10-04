@@ -22,16 +22,29 @@ the visitor's answers, each extended with small anchored accent dabs up
 to a 10-stroke budget (`MAX_STROKES`). Colors come from a fixed set of
 common pen colors (`STANDARD_PENS`) picked by nearest hue to the
 visitor's answer, not generated freely -- the robot holds a small set of
-interchangeable pens, not custom-mixed paint. The "which grammar, what
-parameters" choice the proposal assigns to an LLM is currently a
-deterministic function of the answers (`derive_brief`) rather than an
-actual model call -- no model API key is available in this environment
-yet. Swapping in a real model only requires changing `derive_brief`;
+interchangeable pens, not custom-mixed paint.
+
+The visitor also picks a **style** (`STYLES`: Modernist Gesture, Impressionist
+Bloom, Ink Wash Minimal), each tied to one grammar *and* one rendering
+treatment -- picking the grammar directly from a visitor choice turned out
+to look better and be more interactive than the earlier hash-derived 1-in-3
+assignment. `rationale_for(answers, brief)` generates a short, templated
+explanation of *why* the piece looks the way it does, tying the pen
+colors/grammar/accents back to the visitor's own answers -- the "why
+created this way" explanation shown on the web demo as the piece is
+painted, standing in for the same explanation an LLM would write.
+
+The "which grammar, what parameters" choice the proposal originally
+assigned to an LLM is, net of the visitor's style pick, a deterministic
+function of the answers (`derive_brief`) rather than an actual model call
+-- no model API key is available in this environment yet. Swapping in a
+real model only requires changing `derive_brief` and `rationale_for`;
 everything downstream (grammar rendering, Stroke output) is unaffected.
-Run `python3 sim/preview_compositions.py` to render example outputs to
-`sim/output/compositions/examples.png` without needing Isaac Sim at all.
-The other path in the proposal (direct CLIPDraw-style stroke
-optimization against a vision-language embedding) is not implemented.
+Run `python3 sim/preview_compositions.py` to render example outputs (one
+per style) to `sim/output/compositions/examples.png` and print their
+rationale text, without needing Isaac Sim at all. The other path in the
+proposal (direct CLIPDraw-style stroke optimization against a
+vision-language embedding) is not implemented.
 
 **Isaac Sim (`franka_paint_sim.py`): working**, via Docker under this
 account (see "Running the Isaac Sim validation" below), and wired

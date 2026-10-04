@@ -77,6 +77,65 @@ _PEN_HUES = {
     "blue": 0.61, "purple": 0.76, "pink": 0.92, "brown": 0.08,
 }
 
+# Visitor-facing style choices (Sec. 4.1, "Interaction Layer"), each tied
+# to one grammar. Previously the grammar was picked for the visitor by a
+# hash of their answers; letting them choose the style directly is both
+# more satisfying to interact with and more reliable for aesthetic
+# quality than a 1-in-3 random assignment.
+STYLES = {
+    "modernist": {"label": "Modernist Gesture", "grammar": "arc_over_line"},
+    "impressionist": {"label": "Impressionist Bloom", "grammar": "radiating_strokes"},
+    "ink_wash": {"label": "Ink Wash Minimal", "grammar": "nested_curves"},
+}
+DEFAULT_STYLE = "modernist"
+
+# A short, templated explanation of *why* the piece looks the way it does,
+# connecting the generated artwork back to the visitor's own answers.
+# Stands in for an LLM-written rationale for the same reason derive_brief
+# is deterministic rather than a real model call (Sec. "Semantic-to-
+# Artistic Composition"): no model API access in this environment yet.
+_RATIONALE_TEMPLATES = {
+    "arc_over_line": (
+        'A single {primary} gesture rises across the canvas and closes with a {secondary} '
+        'arc -- a confident line for a dream like "{dream}." The fine black marks scattered '
+        "near it carry {mood_article} {mood_phrase} energy, and the two pens were picked to "
+        'echo "{color}" and the feel of {city}.'
+    ),
+    "nested_curves": (
+        'Layers of {primary} and {secondary} curves nest inside one another, each a little '
+        'larger than the last -- like ripples spreading outward from "{dream}." A small '
+        "flourish signs off the outermost curve, and the fine black accents nearby are "
+        '{mood_article} {mood_phrase} touch, in colors drawn from "{color}" and {city}.'
+    ),
+    "radiating_strokes": (
+        'Strokes in {primary} and {secondary} radiate outward from a single point, like '
+        'petals opening -- a burst of energy for "{dream}." The small black marks at their '
+        "tips add {mood_article} {mood_phrase} rhythm, and the palette traces back to "
+        '"{color}" and a touch of {city}.'
+    ),
+}
+
+
+def _article(word: str) -> str:
+    return "an" if word[:1].lower() in "aeiou" else "a"
+
+
+def rationale_for(answers: "PromptAnswers", brief: "ArtisticBrief") -> str:
+    """A short, human-readable explanation tying the generated artwork
+    back to the visitor's own answers -- displayed alongside the piece
+    as it's painted, not just the finished result."""
+    template = _RATIONALE_TEMPLATES[brief.grammar]
+    mood_phrase = answers.mood.strip() or "calm"
+    return template.format(
+        primary=brief.pen_names[0],
+        secondary=brief.pen_names[1],
+        dream=answers.dream.strip(),
+        mood_phrase=mood_phrase,
+        mood_article=_article(mood_phrase),
+        color=answers.favorite_color.strip(),
+        city=answers.favorite_city.strip(),
+    )
+
 
 def _text_seed(*parts: str) -> int:
     """A stable integer seed for a tuple of free-text answers."""
@@ -117,6 +176,7 @@ class PromptAnswers:
     favorite_city: str
     dream: str
     mood: str = ""
+    style: str = DEFAULT_STYLE  # one of STYLES' keys
 
 
 @dataclass
@@ -126,14 +186,12 @@ class ArtisticBrief:
 
     seed: int
     grammar: str  # which grammar function to use
+    style: str = DEFAULT_STYLE  # the visitor-facing style name (STYLES key)
     pen_names: list[str] = field(default_factory=list)  # [primary, secondary] from STANDARD_PENS
     palette: list[str] = field(default_factory=list)  # [primary, secondary, "black"] hex
     scale: float = 1.0  # 0.9-1.15, overall composition size
     rotation_deg: float = 0.0  # overall composition rotation
     center: tuple = (0.5, 0.5)  # off-center composition anchor
-
-
-_GRAMMARS = ("arc_over_line", "nested_curves", "radiating_strokes")
 
 
 def derive_brief(answers: PromptAnswers) -> ArtisticBrief:
@@ -147,7 +205,8 @@ def derive_brief(answers: PromptAnswers) -> ArtisticBrief:
     primary_pen, secondary_pen = _pick_pens(hue)
     palette = [STANDARD_PENS[primary_pen], STANDARD_PENS[secondary_pen], STANDARD_PENS["black"]]
 
-    grammar = _GRAMMARS[seed % len(_GRAMMARS)]
+    style = answers.style if answers.style in STYLES else DEFAULT_STYLE
+    grammar = STYLES[style]["grammar"]
     scale = float(rng.uniform(0.9, 1.15))
     rotation_deg = float(rng.uniform(-15.0, 15.0))
     # A gentle off-center anchor (rule-of-thirds-ish) instead of always
@@ -157,6 +216,7 @@ def derive_brief(answers: PromptAnswers) -> ArtisticBrief:
     return ArtisticBrief(
         seed=seed,
         grammar=grammar,
+        style=style,
         pen_names=[primary_pen, secondary_pen],
         palette=palette,
         scale=scale,

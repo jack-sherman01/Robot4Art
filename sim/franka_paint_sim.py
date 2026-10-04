@@ -56,7 +56,7 @@ from isaacsim.robot.manipulators.examples.franka.controllers.rmpflow_controller 
 )
 
 from canvas import CANVAS_CENTER, CANVAS_SIZE, canvas_to_world, downward_orientation  # noqa: E402
-from composition import PromptAnswers, compose  # noqa: E402
+from composition import PromptAnswers, compose, rationale_for  # noqa: E402
 
 # A representative example visitor, standing in for live kiosk input --
 # same composer as the web demo (docs/app.js) and sim/preview_compositions.py.
@@ -65,6 +65,7 @@ EXAMPLE_ANSWERS = PromptAnswers(
     favorite_city="Pittsburgh",
     dream="to build robots that help people",
     mood="curious",
+    style="modernist",
 )
 
 
@@ -120,7 +121,8 @@ def main():
     orientation = downward_orientation()
 
     plan, brief = compose(EXAMPLE_ANSWERS)
-    print(f"[composition] grammar={brief.grammar} pens={brief.pen_names} strokes={len(plan)}", flush=True)
+    print(f"[composition] style={brief.style} pens={brief.pen_names} strokes={len(plan)}", flush=True)
+    print(f"[rationale] {rationale_for(EXAMPLE_ANSWERS, brief)}", flush=True)
     trace = []
     wall_start = time.time()
 
@@ -154,7 +156,9 @@ def main():
                 "strokes": [s.name for s in plan],
                 "stroke_colors": {s.name: s.color for s in plan},
                 "grammar": brief.grammar,
+                "style": brief.style,
                 "pen_names": brief.pen_names,
+                "rationale": rationale_for(EXAMPLE_ANSWERS, brief),
                 "trace": trace,
             },
             f,

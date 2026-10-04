@@ -3,12 +3,13 @@
 An interactive human-robot co-creation system for live minimalist painting.
 
 A visitor answers a few short, personal prompts — favorite color, favorite
-city, a current dream or aspiration — and picks a robot platform. The
-answers are composed into an original abstract artwork constrained to
-roughly ten brush strokes drawn with a small set of common pen colors (not
-custom-mixed paint), which a robot arm then paints live in a couple of
-minutes. Built for public demonstration at [CoRL](https://www.corl.org/)
-(Conference on Robot Learning).
+city, a current dream or aspiration — picks an artistic style, and picks a
+robot platform. The answers are composed into an original abstract artwork
+constrained to roughly ten brush strokes drawn with a small set of common
+pen colors (not custom-mixed paint), which a robot arm then paints live in
+a couple of minutes, alongside a short on-screen explanation of why the
+piece looks the way it does. Built for public demonstration at
+[CoRL](https://www.corl.org/) (Conference on Robot Learning).
 
 **[Try it live →](https://jack-sherman01.github.io/Robot4Art/)** — generate
 a painting in your browser, and watch a video of the Isaac Sim simulation
@@ -21,15 +22,18 @@ Group).
 
 ## How it works
 
-1. **Kiosk input.** A visitor answers a few short, personal prompts and
-   picks a robot platform (Franka Emika Panda, Kinova Gen3, or UFACTORY
-   xArm).
+1. **Kiosk input.** A visitor answers a few short, personal prompts, picks
+   a style (Modernist Gesture, Impressionist Bloom, or Ink Wash Minimal),
+   and picks a robot platform (Franka Emika Panda, Kinova Gen3, or
+   UFACTORY xArm).
 2. **Semantic composition.** The answers are composed into an artistic
-   brief — a palette and a choice of parametric stroke "grammar" — and
+   brief — a palette and a stroke "grammar" tied to the chosen style — and
    rendered as an ordered list of ≤10 vector strokes in a small set of
    common pen colors. ([`sim/composition.py`](sim/composition.py),
    also what the [GitHub Pages demo](https://jack-sherman01.github.io/Robot4Art/)
-   runs client-side in JavaScript.)
+   runs client-side in JavaScript.) A short templated explanation ties the
+   result back to the visitor's own answers and is revealed on screen as
+   the piece is painted.
 3. **Stroke planning.** Each stroke is a smooth planar curve with a
    pen-up/pen-down state — the shared representation between the
    generative step and the robot execution step.
