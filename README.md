@@ -5,7 +5,8 @@ An interactive human-robot co-creation system for live minimalist painting.
 A visitor answers a few short, personal prompts — favorite color, favorite
 city, a current dream or aspiration — and picks a robot platform. The
 answers are composed into an original abstract artwork constrained to
-roughly five brush strokes, which a robot arm then paints live in about two
+roughly ten brush strokes drawn with a small set of common pen colors (not
+custom-mixed paint), which a robot arm then paints live in a couple of
 minutes. Built for public demonstration at [CoRL](https://www.corl.org/)
 (Conference on Robot Learning).
 
@@ -25,7 +26,8 @@ Group).
    xArm).
 2. **Semantic composition.** The answers are composed into an artistic
    brief — a palette and a choice of parametric stroke "grammar" — and
-   rendered as an ordered list of ≤5 vector strokes. ([`sim/composition.py`](sim/composition.py),
+   rendered as an ordered list of ≤10 vector strokes in a small set of
+   common pen colors. ([`sim/composition.py`](sim/composition.py),
    also what the [GitHub Pages demo](https://jack-sherman01.github.io/Robot4Art/)
    runs client-side in JavaScript.)
 3. **Stroke planning.** Each stroke is a smooth planar curve with a
@@ -44,7 +46,7 @@ published in this repository.
 | --- | --- |
 | Semantic composition (`sim/composition.py`) | Working. Deterministic grammar-based composer; the LLM call the design calls for is stubbed with a deterministic function (no model API access yet) — same answers always produce the same artwork. |
 | Web demo (`docs/`) | Working. JavaScript port of the composition step plus a video of the Isaac Sim run, published via GitHub Pages. No backend. |
-| Isaac Sim validation (`sim/franka_paint_sim.py`) | Working, via Docker (see [`sim/README.md`](sim/README.md)). Verified end-to-end with a simulated Franka arm: all 5 strokes execute and the recorded trajectory tracks the intended composition. Motion only — no ink/paint deposition model yet. |
+| Isaac Sim validation (`sim/franka_paint_sim.py`) | Working, via Docker (see [`sim/README.md`](sim/README.md)). Verified end-to-end with a simulated Franka arm: all 10 strokes execute and the recorded trajectory tracks the intended composition. Motion only — no ink/paint deposition model yet. |
 | Kinova / xArm adapters | Not started. |
 | Physical hardware | Not started. |
 | Real VLM for composition | Not started (no model API access in the current dev environment). |

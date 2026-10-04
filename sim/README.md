@@ -3,7 +3,8 @@
 Two pieces, independently testable:
 
 1. **Semantic composition** (`composition.py`) -- turns a visitor's kiosk
-   answers into a <=5-stroke artwork plan. Pure Python/numpy/matplotlib,
+   answers into a <=10-stroke artwork plan, colored with a small set of
+   common pen colors (not custom-mixed paint). Pure Python/numpy/matplotlib,
    no simulator or GPU needed.
 2. **Isaac Sim validation** (`franka_paint_sim.py`) -- drives a robot arm
    through a stroke plan on a virtual canvas and checks the executed
@@ -17,24 +18,27 @@ procedural composition" path from the research proposal (Sec.
 "Semantic-to-Artistic Composition", path 2): a small library of
 parametric grammars (`arc_over_line`, `nested_curves`,
 `radiating_strokes`) filled in with color/scale/placement derived from
-the visitor's answers. The "which grammar, what parameters" choice the
-proposal assigns to an LLM is currently a deterministic function of the
-answers (`derive_brief`) rather than an actual model call -- no model API
-key is available in this environment yet. Swapping in a real model only
-requires changing `derive_brief`; everything downstream (grammar
-rendering, Stroke output) is unaffected. Run `python3 sim/preview_compositions.py`
-to render example outputs to `sim/output/compositions/examples.png`
-without needing Isaac Sim at all. The other path in the proposal (direct
-CLIPDraw-style stroke optimization against a vision-language embedding)
-is not implemented.
+the visitor's answers, each extended with small anchored accent dabs up
+to a 10-stroke budget (`MAX_STROKES`). Colors come from a fixed set of
+common pen colors (`STANDARD_PENS`) picked by nearest hue to the
+visitor's answer, not generated freely -- the robot holds a small set of
+interchangeable pens, not custom-mixed paint. The "which grammar, what
+parameters" choice the proposal assigns to an LLM is currently a
+deterministic function of the answers (`derive_brief`) rather than an
+actual model call -- no model API key is available in this environment
+yet. Swapping in a real model only requires changing `derive_brief`;
+everything downstream (grammar rendering, Stroke output) is unaffected.
+Run `python3 sim/preview_compositions.py` to render example outputs to
+`sim/output/compositions/examples.png` without needing Isaac Sim at all.
+The other path in the proposal (direct CLIPDraw-style stroke
+optimization against a vision-language embedding) is not implemented.
 
 **Isaac Sim (`franka_paint_sim.py`): working**, via Docker under this
-account (see "Running the Isaac Sim validation" below). Verified
-end-to-end with a Franka arm: all five strokes complete and the recorded
-end-effector trace visibly tracks the intended composition (see
-`sim/output/paint_trace.png` after a run). The script still uses the
-fixed example plan from `stroke_plan.py` rather than `composition.py`'s
-output; wiring the two together is a small, not-yet-done follow-up.
+account (see "Running the Isaac Sim validation" below), and wired
+directly to `composition.py` (a fixed example `PromptAnswers`, standing
+in for live kiosk input). Verified end-to-end with a Franka arm: all 10
+strokes complete and the recorded end-effector trace visibly tracks the
+intended composition (see `sim/output/paint_trace.png` after a run).
 
 **Known limitation:** this only validates *motion* (the end effector
 visits the right places at the right simulated times) -- there is no
@@ -57,16 +61,17 @@ color. Authentic data, just not a 3D render. Output feeds directly into
 `docs/media/` for the GitHub Pages site.
 
 **Not yet done:** Kinova and xArm adapters (the proposal's robot-agnostic
-execution layer), a real model call in `derive_brief`, wiring
-`composition.py`'s output into `franka_paint_sim.py`, an actual Isaac Sim
-camera render (see above), and real-time-budget validation against the
-~2 minute target (this run's *simulated* time was ~164s, which is not
-directly comparable to real wall-clock execution speed).
+execution layer), a real model call in `derive_brief`, an actual Isaac
+Sim camera render (see above), and real-time-budget validation against
+the live-kiosk timing target (this run's *simulated* time was ~272s for
+10 strokes, which is not directly comparable to real wall-clock
+execution speed).
 
 ## Files
 
-- `composition.py` -- visitor answers -> artistic brief -> <=5-stroke
-  plan. No simulator needed; see `preview_compositions.py`.
+- `composition.py` -- visitor answers -> artistic brief -> <=10-stroke
+  plan, colored from a fixed set of common pen colors. No simulator
+  needed; see `preview_compositions.py`.
 - `preview_compositions.py` -- renders example compositions to
   `output/compositions/examples.png`. No simulator needed.
 - `docker_run.sh` -- runs a script inside this project's Isaac Sim 4.5.0
@@ -82,10 +87,9 @@ directly comparable to real wall-clock execution speed).
 - `canvas.py` -- canvas geometry and the normalized-canvas-coords ->
   world-pose transform shared by any robot adapter.
 - `stroke_plan.py` -- geometry primitives (`Stroke`, line/arc/bezier
-  helpers) plus a fixed example 5-stroke plan, used directly by
-  `franka_paint_sim.py` and as a building block for `composition.py`.
+  helpers) `composition.py` builds artwork plans from.
 - `franka_paint_sim.py` -- the Isaac Sim standalone script that actually
-  runs the simulation.
+  runs the simulation, using `composition.py`'s output.
 - `render_paint_video.py` -- animates `output/trace.json` into an MP4
   (no Isaac Sim needed, just the trace file from a prior run). Used to
   produce `docs/media/paint_video.mp4` for the website.

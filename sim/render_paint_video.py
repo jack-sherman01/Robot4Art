@@ -35,7 +35,6 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from canvas import CANVAS_CENTER, CANVAS_SIZE  # noqa: E402
-from stroke_plan import default_stroke_plan  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -61,7 +60,12 @@ def main():
         data = json.load(f)
     trace = data["trace"]
 
-    stroke_colors = {s.name: s.color for s in default_stroke_plan()}
+    stroke_colors = data.get("stroke_colors")
+    if not stroke_colors:
+        raise SystemExit(
+            "trace.json has no 'stroke_colors' -- it was written by an older franka_paint_sim.py. "
+            "Re-run the simulation (sim/docker_run.sh franka_paint_sim.py --headless) to regenerate it."
+        )
 
     n_frames_target = max(1, int(args.fps * args.duration))
     step = max(1, len(trace) // n_frames_target)
@@ -115,9 +119,6 @@ def main():
         pen_marker.set_data([nx], [ny_plot])
         pen_ring.set_data([nx], [ny_plot])
 
-        done = sum(1 for s in default_stroke_plan() if s.name in trail_lines and s.name != stroke_name) + (
-            1 if frame["pen_down"] else 0
-        )
         title.set_text(f"Robot4Art — simulated Franka arm  ·  stroke {stroke_name.replace('_', ' ')}")
         caption.set_text(f"NVIDIA Isaac Sim 4.5.0 · recorded end-effector trajectory · step {frame['step']:05d}/{data['num_steps']}")
         return list(trail_lines.values()) + [pen_marker, pen_ring, title, caption]
