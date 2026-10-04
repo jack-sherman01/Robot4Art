@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Robot4Art</title>
+<meta name="description" content="Robot4Art: an interactive human-robot co-creation system for live minimalist painting. Answer a few questions, a robot paints the result in under five strokes.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2245%22 fill=%22%23161513%22/><path d=%22M20 70 L75 30%22 stroke=%22%23E07A3F%22 stroke-width=%226%22 fill=%22none%22 stroke-linecap=%22round%22/></svg>">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <p class="eyebrow">Safe AI Lab · CMU &nbsp;×&nbsp; Poke Robotics &nbsp;×&nbsp; LKK Design</p>
+    <h1>Robot4Art</h1>
+    <p class="tagline">Tell it a little about yourself. A robot arm paints an original, five-stroke abstract piece from the answer &mdash; live, in about two minutes.</p>
+    <p class="hero-links">
+      <a href="https://github.com/jack-sherman01/Robot4Art" target="_blank" rel="noopener">Source on GitHub</a>
+      <span aria-hidden="true">·</span>
+      <a href="#how-it-works">How it works</a>
+    </p>
+  </div>
+</header>
+
+<main>
+  <section class="panel" id="kiosk">
+    <h2>Try the composition step</h2>
+    <p class="panel-note">
+      This runs the same deterministic grammar-based composer as
+      <code>sim/composition.py</code>, in your browser &mdash; no server, no
+      model call. It stands in for the vision-language model described in
+      the research proposal; same answers always produce the same artwork.
+    </p>
+
+    <form id="kiosk-form">
+      <div class="field">
+        <label for="color">Favorite color</label>
+        <input id="color" name="color" type="text" maxlength="40" placeholder="e.g. teal" required>
+      </div>
+      <div class="field">
+        <label for="city">Favorite city</label>
+        <input id="city" name="city" type="text" maxlength="40" placeholder="e.g. Pittsburgh" required>
+      </div>
+      <div class="field">
+        <label for="dream">A dream or aspiration</label>
+        <input id="dream" name="dream" type="text" maxlength="80" placeholder="e.g. to build robots that help people" required>
+      </div>
+      <div class="field">
+        <label for="mood">Mood right now <span class="optional">(optional)</span></label>
+        <input id="mood" name="mood" type="text" maxlength="40" placeholder="e.g. curious">
+      </div>
+      <div class="field">
+        <label for="robot">Robot platform</label>
+        <select id="robot" name="robot">
+          <option value="franka">Franka Emika Panda</option>
+          <option value="kinova">Kinova Gen3</option>
+          <option value="xarm">UFACTORY xArm</option>
+        </select>
+      </div>
+
+      <div class="field-row">
+        <button type="submit" class="primary">Paint it</button>
+        <button type="button" id="surprise-me" class="ghost">Surprise me</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="panel" id="canvas-panel">
+    <div class="canvas-wrap">
+      <svg id="canvas" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Generated painting"></svg>
+      <div class="canvas-overlay" id="canvas-placeholder">
+        <p>Your painting will appear here</p>
+      </div>
+    </div>
+    <dl class="brief" id="brief" hidden>
+      <div><dt>Grammar</dt><dd id="brief-grammar">&mdash;</dd></div>
+      <div><dt>Strokes</dt><dd id="brief-strokes">&mdash;</dd></div>
+      <div><dt>Robot</dt><dd id="brief-robot">&mdash;</dd></div>
+      <div><dt>Palette</dt><dd id="brief-palette" class="swatches"></dd></div>
+    </dl>
+  </section>
+
+  <section class="panel" id="how-it-works">
+    <h2>How it works</h2>
+    <ol class="steps">
+      <li><strong>Kiosk input.</strong> A visitor answers a few short, personal prompts and picks a robot platform.</li>
+      <li><strong>Semantic composition.</strong> The answers are composed into an artistic brief &mdash; a palette and a choice of parametric stroke "grammar" &mdash; and rendered as an ordered list of &le;5 vector strokes. This page runs that step directly in JavaScript.</li>
+      <li><strong>Stroke planning.</strong> Each stroke is a smooth planar curve with a pen-up/pen-down state &mdash; the same representation the robot execution layer consumes.</li>
+      <li><strong>Robot-agnostic execution.</strong> The stroke plan is retargeted to the selected robot's task frame and physically executed. Validated so far in simulation (NVIDIA Isaac Sim, Franka arm) &mdash; see <code>sim/</code> in the repository.</li>
+    </ol>
+    <p class="panel-note">
+      Full details are in the project's bilingual research proposal (not
+      published in this repository). The <code>sim/</code> directory has the
+      Isaac Sim validation pipeline and the composition module this page is
+      built on.
+    </p>
+  </section>
+</main>
+
+<footer>
+  <p>Robot4Art &middot; <a href="https://github.com/jack-sherman01/Robot4Art" target="_blank" rel="noopener">github.com/jack-sherman01/Robot4Art</a></p>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
