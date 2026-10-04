@@ -145,6 +145,22 @@ main {
 
 .panel-note.small { font-size: 0.82rem; margin-bottom: 0; }
 
+.llm-rationale {
+  margin: 1rem 0;
+  padding: 0.9rem 1.2rem;
+  border-left: 3px solid var(--accent, #E07A3F);
+  font-style: italic;
+  font-size: 0.92rem;
+  color: var(--muted);
+}
+
+.llm-rationale footer {
+  margin-top: 0.5rem;
+  font-style: normal;
+  font-size: 0.78rem;
+  opacity: 0.8;
+}
+
 h2 {
   margin-top: 0;
   font-size: 1.3rem;

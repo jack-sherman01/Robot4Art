@@ -44,11 +44,27 @@ created this way" explanation shown on the web demo as the piece is
 painted, standing in for the same explanation an LLM would write.
 
 The "which grammar, what parameters" choice the proposal originally
-assigned to an LLM is, net of the visitor's style pick, a deterministic
-function of the answers (`derive_brief`) rather than an actual model call
--- no model API key is available in this environment yet. Swapping in a
-real model only requires changing `derive_brief` and `rationale_for`;
-everything downstream (grammar rendering, Stroke output) is unaffected.
+assigned to an LLM has two implementations now. `derive_brief` is a
+deterministic stand-in (net of the visitor's style pick, a pure function
+of the answers) -- this is what the interactive GitHub Pages demo runs
+client-side, since a static page with no backend can't make a real model
+call. `llm_composer.derive_brief_llm` asks an actual Claude model instead,
+by invoking the already-authenticated `claude` CLI headlessly
+(`claude -p --restricted --model <model> --output-format json`) -- no
+separate API key needed in this dev environment. Both produce the same
+`ArtisticBrief` shape, so `strokes_from_brief` (the actual curve-geometry
+rendering) is unaffected either way; only the creative decision differs.
+The real-model path is used for the one-off Isaac Sim example painting:
+`generate_example_brief.py` calls it once and caches the result to
+`example_brief.json` (committed, not gitignored, since it's the one real
+model decision the published artifacts show) -- `example_answers.py`'s
+`load_example_brief()` loads that cache rather than re-calling the model
+on every pipeline run (slow, costs money, and a fresh call could disagree
+with a previous one). Re-run `generate_example_brief.py` manually to get a
+new model decision; everything downstream picks it up automatically.
+A live per-visitor real-model version of the public web demo would need
+its own hosted backend and API key -- a distinct cost/latency/abuse-surface
+decision, not yet made.
 Run `python3 sim/preview_compositions.py` to render example outputs
 (including deliberately non-default style/brush pairings, to show
 they're independent choices) to `sim/output/compositions/examples.png`
@@ -127,10 +143,18 @@ comparable to real wall-clock execution speed).
   world-pose transform shared by any robot adapter.
 - `stroke_plan.py` -- geometry primitives (`Stroke`, line/arc/bezier
   helpers) `composition.py` builds artwork plans from.
+- `llm_composer.py` -- real Claude-model-driven alternative to
+  `composition.py`'s `derive_brief`, via the headless `claude` CLI.
+- `generate_example_brief.py` -- one-off script: calls `llm_composer` for
+  `EXAMPLE_ANSWERS` and writes `example_brief.json`. Run manually when
+  `EXAMPLE_ANSWERS` changes; not called automatically.
+- `example_brief.json` -- cached real-model decision for the published
+  example painting (committed, not gitignored).
 - `example_answers.py` -- the one fixed example `PromptAnswers` used
   everywhere a representative composition is needed (Isaac Sim
-  validation, the robot video, the static reference image), so all three
-  stay in sync.
+  validation, the robot video, the static reference image), plus
+  `load_example_brief()` which loads the cached real-model brief above,
+  so all three stay in sync.
 - `franka_paint_sim.py` -- the Isaac Sim standalone script that runs the
   simulation and records the trace/trace-plot, using `composition.py`'s
   output. Headless/fast -- no rendering.

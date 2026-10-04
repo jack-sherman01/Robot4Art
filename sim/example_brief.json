@@ -1,0 +1,22 @@
+{
+  "seed": 7432087030944744,
+  "grammar": "radiating_strokes",
+  "style": "impressionist",
+  "brush": "marker",
+  "pen_names": [
+    "teal",
+    "blue"
+  ],
+  "palette": [
+    "#1F7A72",
+    "#2255A4",
+    "#232323"
+  ],
+  "scale": 1.05,
+  "rotation_deg": 6.0,
+  "center": [
+    0.44642336419576273,
+    0.5438147593332663
+  ],
+  "rationale": "We center the piece on radiating_strokes because curious, outward-reaching energy matches a mood of curiosity and an aspiration to build robots that help people -- each stroke pushes out from a shared core like an idea branching into action. Teal as the primary pen honors the visitor's stated favorite color directly, while blue as the secondary nods to Pittsburgh's rivers and steel-blue skyline. We chose the marker for crisp, confident lines with just enough taper to feel hand-made rather than mechanical, and a slight clockwise rotation and modest upscale give the burst a sense of forward motion and openness."
+}

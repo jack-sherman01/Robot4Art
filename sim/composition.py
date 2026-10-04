@@ -393,9 +393,14 @@ _GRAMMAR_FNS = {
 }
 
 
-def compose(answers: PromptAnswers) -> tuple[list[Stroke], ArtisticBrief]:
-    """Visitor answers -> (<=MAX_STROKES-stroke artwork plan, the brief that produced it)."""
-    brief = derive_brief(answers)
+def strokes_from_brief(brief: ArtisticBrief) -> list[Stroke]:
+    """Render an already-decided ArtisticBrief into actual stroke
+    geometry. Split out from compose() so a brief produced some other
+    way (e.g. llm_composer.derive_brief_llm, a real model call) can
+    reuse the same procedural rendering -- this part is just math
+    (turning "arc_over_line, teal/purple, scale 1.0" into curve control
+    points), not a creative decision, so it stays deterministic either
+    way."""
     rng = np.random.default_rng(brief.seed)
     center = np.array(brief.center)
     strokes = _GRAMMAR_FNS[brief.grammar](rng, brief.palette, brief.scale, center)
@@ -407,4 +412,14 @@ def compose(answers: PromptAnswers) -> tuple[list[Stroke], ArtisticBrief]:
         ]
 
     assert len(strokes) <= MAX_STROKES, f"grammar {brief.grammar!r} produced {len(strokes)} strokes, budget is {MAX_STROKES}"
-    return strokes, brief
+    return strokes
+
+
+def compose(answers: PromptAnswers) -> tuple[list[Stroke], ArtisticBrief]:
+    """Visitor answers -> (<=MAX_STROKES-stroke artwork plan, the brief that produced it).
+
+    Uses the deterministic stand-in (derive_brief) for the creative
+    decision. See llm_composer.py for a version that asks a real model
+    instead."""
+    brief = derive_brief(answers)
+    return strokes_from_brief(brief), brief

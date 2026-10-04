@@ -53,12 +53,13 @@ published in this repository.
 
 | Piece | Status |
 | --- | --- |
-| Semantic composition (`sim/composition.py`) | Working. Deterministic grammar-based composer; the LLM call the design calls for is stubbed with a deterministic function (no model API access yet) — same answers always produce the same artwork. |
-| Web demo (`docs/`) | Working. JavaScript port of the composition step, plus a real recorded Isaac Sim video of a Franka arm painting the same plan, side by side with a static render of what the composer generated. Published via GitHub Pages, no backend. |
+| Semantic composition (`sim/composition.py`) | Working. Deterministic grammar-based composer — what the interactive web demo runs client-side, since a static page can't make a real model call. |
+| Real LLM composition (`sim/llm_composer.py`) | Working. Asks an actual Claude model (via the headless `claude` CLI, no separate API key needed) to choose the grammar, pen colors, brush, and write its own rationale. Used to generate the cached example brief (`sim/example_brief.json`) behind the Isaac Sim example painting below — not wired into the live client-side web demo, which would need its own hosted backend. |
+| Web demo (`docs/`) | Working. JavaScript port of the deterministic composition step, plus a real recorded Isaac Sim video of a Franka arm painting a real-Claude-composed plan, side by side with a static render of what the model generated. Published via GitHub Pages, no backend. |
 | Isaac Sim validation + video (`sim/franka_paint_sim.py`, `sim/franka_paint_video.py`) | Working, via Docker (see [`sim/README.md`](sim/README.md)). Verified end-to-end with a simulated Franka arm: all 10 strokes execute, the recorded trajectory tracks the intended composition, and the video shows real rendered full-body robot motion (not a 2D trace animation). Motion only — no ink/paint deposition model yet, so the canvas stays blank in the video. |
 | Kinova / xArm adapters | Not started. |
 | Physical hardware | Not started. |
-| Real VLM for composition | Not started (no model API access in the current dev environment). |
+| Live per-visitor real-model composition | Not started — needs a hosted backend and API key, a separate cost/latency/abuse-surface decision from the batch use above. |
 
 ## Repository layout
 
