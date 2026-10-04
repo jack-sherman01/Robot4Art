@@ -1,6 +1,9 @@
 # Private project drafts (proposals, internal docs) - never commit
 /private/
 
+# Generated simulation run artifacts (trace logs, plots)
+/sim/output/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
