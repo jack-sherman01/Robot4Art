@@ -98,13 +98,43 @@ main {
 
 #how-it-works, #simulation, #rationale-panel { grid-column: 1 / -1; }
 
-.video-wrap {
+.compare-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
   margin: 1rem 0;
+  align-items: start;
+}
+
+@media (max-width: 680px) {
+  .compare-grid { grid-template-columns: 1fr; }
+}
+
+.compare-item {
+  margin: 0;
+}
+
+.compare-item img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: #F6F1E7;
+}
+
+.compare-item figcaption {
+  margin-top: 0.5rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+.video-wrap {
   border-radius: 6px;
   overflow: hidden;
   border: 1px solid var(--line);
   background: #000;
-  max-width: 560px;
 }
 
 .video-wrap video {
