@@ -7,10 +7,15 @@ trajectory actually traces the intended composition.
 
 ## Status
 
-Working end-to-end with a Franka arm (`sim/franka_paint_sim.py`), headless,
-on this machine's shared Isaac Sim 4.5 install. See
-`sim/output/paint_trace.png` after a run for the intended-vs-executed
+Working end-to-end with a Franka arm (`sim/franka_paint_sim.py`), headless.
+See `sim/output/paint_trace.png` after a run for the intended-vs-executed
 overlay plot.
+
+**This account (`heng`) has no Isaac Sim install of its own yet.** This
+project only ever uses an Isaac Sim install that lives under this
+account's own home directory -- it does not search, read, or run anything
+under another user's home directory on this shared machine, even one that
+happens to be readable. See "Running it" below for installing one here.
 
 **Known limitation:** this validates *motion* (the end effector visits the
 right places at the right simulated times) -- there is no ink/paint
@@ -28,11 +33,10 @@ is not directly comparable to real-world wall-clock execution speed).
 
 ## Files
 
-- `find_isaac_sim.py` -- locates a usable Isaac Sim install on this
-  machine. No Isaac Sim install exists under this account; it currently
-  resolves to a world-readable install under another user's home
-  directory on this shared GPU workstation. Override with
-  `ROBOT4ART_ISAAC_SIM_PATH` if running elsewhere.
+- `find_isaac_sim.py` -- locates a usable Isaac Sim install under *this*
+  account's own home directory (`~/isaacsim` or `~/isaac-sim`), or at
+  `$ROBOT4ART_ISAAC_SIM_PATH` if set. Deliberately never looks under
+  another user's home directory, even a readable one.
 - `canvas.py` -- canvas geometry and the normalized-canvas-coords ->
   world-pose transform shared by any robot adapter.
 - `stroke_plan.py` -- the 5-stroke artwork plan. Currently a fixed
@@ -43,6 +47,13 @@ is not directly comparable to real-world wall-clock execution speed).
 - `output/` -- generated run artifacts (trace JSON + plot PNG), gitignored.
 
 ## Running it
+
+Requires an Isaac Sim standalone install under this account, at `~/isaacsim`
+or `~/isaac-sim` (or pointed to via `$ROBOT4ART_ISAAC_SIM_PATH`). Isaac Sim
+is a multi-GB download gated behind an NVIDIA account; install it under
+`heng`'s own home directory per [NVIDIA's workstation install
+instructions](https://docs.isaacsim.omniverse.nvidia.com/latest/installation/install_workstation.html)
+before running this.
 
 ```bash
 ISAAC=$(python3 sim/find_isaac_sim.py)

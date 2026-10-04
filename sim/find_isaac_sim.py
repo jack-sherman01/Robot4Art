@@ -7,16 +7,18 @@ install, found independently at run time.
 Resolution order:
   1. $ROBOT4ART_ISAAC_SIM_PATH, if set (must point at a valid install root).
   2. Common per-user locations under the current user's own home.
-  3. World-readable installs under other accounts' homes, since shared
-     GPU workstations often have Isaac Sim installed once per user
-     rather than system-wide.
+
+Deliberately does NOT search other accounts' home directories, even ones
+that happen to be readable -- this machine is shared with other users, and
+their installs are theirs, not a resource for this project to depend on.
+If no install is found under the current user's own home, install one
+there (see sim/README.md) rather than reaching into someone else's.
 
 A directory counts as a valid install if it contains an executable
 ``python.sh`` (Isaac Sim's bundled Python launcher) and an
 ``isaac-sim.sh`` entry point.
 """
 
-import glob
 import os
 
 
@@ -40,23 +42,16 @@ def find_isaac_sim_path() -> str:
     own_candidates = [
         os.path.join(home, "isaacsim"),
         os.path.join(home, "isaac-sim"),
-        os.path.join(home, "humanoid", "isaacsim"),
     ]
     for candidate in own_candidates:
         if _is_valid_install(candidate):
             return candidate
 
-    # Shared workstation fallback: look for other accounts' installs that
-    # happen to be world-readable/executable.
-    shared_patterns = ("/home/*/isaacsim", "/home/*/isaac-sim", "/home/*/*/isaacsim")
-    for pattern in shared_patterns:
-        for candidate in sorted(glob.glob(pattern)):
-            if _is_valid_install(candidate):
-                return candidate
-
     raise RuntimeError(
-        "Could not find an Isaac Sim installation. Set ROBOT4ART_ISAAC_SIM_PATH to "
-        "the install root (the directory that contains python.sh)."
+        "Could not find an Isaac Sim installation under this account "
+        f"({home}/isaacsim or {home}/isaac-sim). This project does not search "
+        "other users' home directories. Install Isaac Sim under this account "
+        "(see sim/README.md) or set ROBOT4ART_ISAAC_SIM_PATH."
     )
 
 
