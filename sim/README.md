@@ -28,27 +28,26 @@ without needing Isaac Sim at all. The other path in the proposal (direct
 CLIPDraw-style stroke optimization against a vision-language embedding)
 is not implemented.
 
-**Isaac Sim (`franka_paint_sim.py`): previously validated, currently
-blocked.** It worked end-to-end with a Franka arm (see git history for
-`sim/output/paint_trace.png`), but that run used another user's Isaac Sim
-install on this shared machine, which this project no longer does (see
-"Running it" below) -- **this account (`heng`) has no Isaac Sim install of
-its own yet**, so this part can't run again until one exists here. The
-script itself still uses the old fixed plan from `stroke_plan.py`;
-wiring it up to `composition.py`'s output is a small follow-up once Isaac
-Sim is available.
+**Isaac Sim (`franka_paint_sim.py`): working**, via Docker under this
+account (see "Running the Isaac Sim validation" below). Verified
+end-to-end with a Franka arm: all five strokes complete and the recorded
+end-effector trace visibly tracks the intended composition (see
+`sim/output/paint_trace.png` after a run). The script still uses the
+fixed example plan from `stroke_plan.py` rather than `composition.py`'s
+output; wiring the two together is a small, not-yet-done follow-up.
 
-**Known limitation (from the earlier validated run):** this only
-validates *motion* (the end effector visits the right places at the right
-simulated times) -- there is no ink/paint deposition model yet, so
-nothing is actually marked on the virtual canvas. There was also a small
-systematic offset between intended and executed traces, likely from
-RMPFlow's reactive convergence behavior.
+**Known limitation:** this only validates *motion* (the end effector
+visits the right places at the right simulated times) -- there is no
+ink/paint deposition model yet, so nothing is actually marked on the
+virtual canvas. There is also a small systematic offset between intended
+and executed traces, likely from RMPFlow's reactive convergence behavior.
 
 **Not yet done:** Kinova and xArm adapters (the proposal's robot-agnostic
 execution layer), a real model call in `derive_brief`, wiring
-`composition.py`'s output into `franka_paint_sim.py`, and real-time-budget
-validation against the ~2 minute target.
+`composition.py`'s output into `franka_paint_sim.py`, video capture for
+the website, and real-time-budget validation against the ~2 minute
+target (this run's *simulated* time was ~164s, which is not directly
+comparable to real wall-clock execution speed).
 
 ## Files
 
@@ -56,10 +55,16 @@ validation against the ~2 minute target.
   plan. No simulator needed; see `preview_compositions.py`.
 - `preview_compositions.py` -- renders example compositions to
   `output/compositions/examples.png`. No simulator needed.
-- `find_isaac_sim.py` -- locates a usable Isaac Sim install under *this*
+- `docker_run.sh` -- runs a script inside this project's Isaac Sim 4.5.0
+  Docker container, under this account's own cache/home directories.
+  This is the supported way to run anything that needs Isaac Sim on this
+  machine (see "Running the Isaac Sim validation" below for why).
+- `find_isaac_sim.py` -- locates a *native* Isaac Sim install under this
   account's own home directory (`~/isaacsim` or `~/isaac-sim`), or at
-  `$ROBOT4ART_ISAAC_SIM_PATH` if set. Deliberately never looks under
-  another user's home directory, even a readable one.
+  `$ROBOT4ART_ISAAC_SIM_PATH`. Not currently used (see below) -- kept for
+  if this machine's OS is ever upgraded to Ubuntu 22.04+, where a native
+  install would be viable and lighter-weight than Docker. Deliberately
+  never looks under another user's home directory, even a readable one.
 - `canvas.py` -- canvas geometry and the normalized-canvas-coords ->
   world-pose transform shared by any robot adapter.
 - `stroke_plan.py` -- geometry primitives (`Stroke`, line/arc/bezier
@@ -77,22 +82,30 @@ python3 sim/preview_compositions.py
 
 ## Running the Isaac Sim validation
 
-Requires an Isaac Sim standalone install under this account, at `~/isaacsim`
-or `~/isaac-sim` (or pointed to via `$ROBOT4ART_ISAAC_SIM_PATH`). Isaac Sim
-is a multi-GB download gated behind an NVIDIA account; install it under
-`heng`'s own home directory per [NVIDIA's workstation install
-instructions](https://docs.isaacsim.omniverse.nvidia.com/latest/installation/install_workstation.html)
-before running this.
+This machine runs Ubuntu 20.04, but current Isaac Sim (pip wheel or
+native standalone install) requires Ubuntu 22.04+ (glibc >= 2.34) --
+that path was tried and fails outright on this OS. Docker sidesteps the
+host glibc, so that's what this project uses instead, entirely under
+this account (`~/docker/isaac-sim/` for caches, no other user's files
+touched).
+
+Image version matters too: the newest Isaac Sim (6.1.0) starts in a
+container but its RTX renderer refuses to initialize on this machine's
+driver (535.230.02 < the 550.90.07 it requires). Isaac Sim **4.5.0**
+works cleanly on this driver, so `docker_run.sh` is pinned to that image.
 
 ```bash
-ISAAC=$(python3 sim/find_isaac_sim.py)
-CUDA_VISIBLE_DEVICES=1 "$ISAAC/python.sh" sim/franka_paint_sim.py --headless
+sim/docker_run.sh franka_paint_sim.py --headless
 ```
 
-`CUDA_VISIBLE_DEVICES` is worth setting explicitly on a shared GPU
-workstation -- check `nvidia-smi` first and pick an idle GPU. Drop
-`--headless` (pass `--show` instead) to open the Isaac Sim GUI window if
-running with a display attached.
+First run on a given machine downloads/builds Isaac Sim's shader and
+extension caches and takes several minutes; subsequent runs are fast
+(under two minutes total) since `docker_run.sh` persists those caches
+under `~/docker/isaac-sim/cache/`.
+
+Set `ROBOT4ART_GPU` to pick a different GPU (default: 1) -- check
+`nvidia-smi` first, since GPU 0 is often busy with other users' jobs on
+this shared workstation.
 
 Output: `sim/output/trace.json` (every simulated end-effector pose) and
 `sim/output/paint_trace.png` (intended vs. executed overlay, the main

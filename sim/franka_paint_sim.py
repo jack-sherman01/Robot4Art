@@ -7,7 +7,13 @@ robot or VLM integration, confirm that a stroke plan in normalized canvas
 coordinates can actually be executed by a robot arm's motion controller
 and produces a sane, trackable end-effector trajectory.
 
-Must be run with Isaac Sim's own bundled Python, e.g.:
+Must be run with Isaac Sim's own bundled Python. On this machine that
+means via Docker (see sim/README.md for why):
+
+    sim/docker_run.sh franka_paint_sim.py --headless
+
+If a native Isaac Sim install is ever available under this account
+instead (see find_isaac_sim.py), run it directly:
 
     $(python3 sim/find_isaac_sim.py)/python.sh sim/franka_paint_sim.py
 
