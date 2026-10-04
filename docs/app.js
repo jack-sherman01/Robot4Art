@@ -2,34 +2,57 @@
  * Robot4Art kiosk demo.
  *
  * A JavaScript port of sim/composition.py's grammar-based composer, so the
- * same deterministic "visitor answers -> <=5-stroke artwork" step can run
+ * same deterministic "visitor answers -> <=10-stroke artwork" step can run
  * entirely client-side on GitHub Pages. Mirrors the Python module's
- * structure (named-hue lookup, text-seeded RNG, three stroke grammars) but
- * uses its own small seeded PRNG rather than reproducing numpy's PCG64 bit
- * for bit -- the point is a consistent, explainable demo, not byte-for-byte
- * parity with the Python backend.
+ * structure (common pen colors, text-seeded RNG, three stroke grammars,
+ * tapered brush rendering) but uses its own small seeded PRNG rather than
+ * reproducing numpy's PCG64 bit for bit -- the point is a consistent,
+ * explainable demo, not byte-for-byte parity with the Python backend.
  */
 
 (() => {
   "use strict";
 
-  // ---- color -------------------------------------------------------------
+  const MAX_STROKES = 10;
+
+  // ---- common pen colors (mirrors composition.py's STANDARD_PENS) ---------
+  // A realistic, physically-stockable set of pen/marker colors -- the
+  // robot holds a small set of interchangeable pens, not custom-mixed
+  // paint, so every composition's colors come from this fixed list.
 
   const NAMED_HUES = [
     ["red", 0.00], ["orange", 0.08], ["amber", 0.11], ["yellow", 0.15], ["gold", 0.13],
-    ["lime", 0.22], ["green", 0.33], ["teal", 0.50], ["cyan", 0.52], ["sky", 0.56],
-    ["blue", 0.60], ["indigo", 0.68], ["purple", 0.75], ["violet", 0.78], ["magenta", 0.83],
-    ["pink", 0.90], ["rose", 0.95], ["brown", 0.07],
+    ["lime", 0.22], ["green", 0.33], ["olive", 0.19], ["teal", 0.50], ["cyan", 0.52],
+    ["sky", 0.56], ["blue", 0.60], ["navy", 0.62], ["indigo", 0.68], ["purple", 0.75],
+    ["violet", 0.78], ["lavender", 0.72], ["magenta", 0.83], ["pink", 0.90],
+    ["rose", 0.95], ["brown", 0.07], ["black", 0.60], ["white", 0.60], ["gray", 0.60], ["grey", 0.60],
   ];
 
+  const STANDARD_PENS = {
+    black: "#232323",
+    red: "#C0392B",
+    orange: "#D2691E",
+    yellow: "#D4A017",
+    green: "#2E7D4F",
+    teal: "#1F7A72",
+    blue: "#2255A4",
+    purple: "#6B3FA0",
+    pink: "#C0527A",
+    brown: "#6F4E2E",
+  };
+
+  const PEN_HUES = {
+    red: 0.00, orange: 0.07, yellow: 0.14, green: 0.36, teal: 0.49,
+    blue: 0.61, purple: 0.76, pink: 0.92, brown: 0.08,
+  };
+
   function hashStr(s) {
-    // FNV-1a over UTF-16 code units; good enough for a stable demo seed.
     let h = 0x811c9dc5;
     for (let i = 0; i < s.length; i++) {
       h ^= s.charCodeAt(i);
       h = Math.imul(h, 0x01000193);
     }
-    return h >>> 0; // unsigned 32-bit
+    return h >>> 0;
   }
 
   function textSeed(...parts) {
@@ -45,26 +68,28 @@
     return (hashStr(t) % 360) / 360;
   }
 
-  function hsvToHex(h, s, v) {
-    h = ((h % 1) + 1) % 1;
-    s = Math.min(1, Math.max(0, s));
-    v = Math.min(1, Math.max(0, v));
-    const i = Math.floor(h * 6);
-    const f = h * 6 - i;
-    const p = v * (1 - s);
-    const q = v * (1 - f * s);
-    const t = v * (1 - (1 - f) * s);
-    let r, g, b;
-    switch (i % 6) {
-      case 0: [r, g, b] = [v, t, p]; break;
-      case 1: [r, g, b] = [q, v, p]; break;
-      case 2: [r, g, b] = [p, v, t]; break;
-      case 3: [r, g, b] = [p, q, v]; break;
-      case 4: [r, g, b] = [t, p, v]; break;
-      default: [r, g, b] = [v, p, q]; break;
+  function hueDistance(a, b) {
+    const d = Math.abs(a - b) % 1;
+    return Math.min(d, 1 - d);
+  }
+
+  function pickPens(hue) {
+    const names = Object.keys(PEN_HUES);
+    let primary = names[0];
+    let bestDist = Infinity;
+    for (const n of names) {
+      const d = hueDistance(PEN_HUES[n], hue);
+      if (d < bestDist) { bestDist = d; primary = n; }
     }
-    const toHex = (x) => Math.round(x * 255).toString(16).padStart(2, "0").toUpperCase();
-    return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+    const remaining = names.filter((n) => n !== primary);
+    const target = (PEN_HUES[primary] + 1 / 3) % 1;
+    let secondary = remaining[0];
+    bestDist = Infinity;
+    for (const n of remaining) {
+      const d = hueDistance(PEN_HUES[n], target);
+      if (d < bestDist) { bestDist = d; secondary = n; }
+    }
+    return [primary, secondary];
   }
 
   // ---- seeded RNG ----------------------------------------------------------
@@ -82,6 +107,9 @@
 
   function uniform(rng, lo, hi) {
     return lo + rng() * (hi - lo);
+  }
+  function uniformInt(rng, lo, hiInclusive) {
+    return Math.floor(uniform(rng, lo, hiInclusive + 1));
   }
 
   // ---- geometry primitives (mirrors stroke_plan.py) -------------------------
@@ -105,7 +133,7 @@
     return pts;
   }
 
-  function quadraticBezier(p0, p1, p2, n = 14) {
+  function quadraticBezier(p0, p1, p2, n = 16) {
     const pts = [];
     for (let i = 0; i < n; i++) {
       const t = i / (n - 1);
@@ -134,6 +162,11 @@
     });
   }
 
+  function normalize(v) {
+    const n = Math.hypot(v[0], v[1]) || 1;
+    return [v[0] / n, v[1] / n];
+  }
+
   // ---- brief derivation (mirrors derive_brief) -------------------------------
 
   const GRAMMARS = ["arc_over_line", "nested_curves", "radiating_strokes"];
@@ -142,74 +175,124 @@
     const seed = textSeed(answers.color, answers.city, answers.dream, answers.mood);
     const rng = mulberry32(seed);
 
-    const baseHue = hueFromText(answers.color);
-    const cityHueShift = (hashStr(answers.city.trim().toLowerCase()) % 1000) / 1000 * 0.12;
-    const palette = [
-      hsvToHex(baseHue, 0.65, 0.78),
-      hsvToHex(baseHue + 0.08 + cityHueShift, 0.55, 0.60),
-      "#1B1B1B",
-    ];
+    const hue = hueFromText(answers.color);
+    const [primaryPen, secondaryPen] = pickPens(hue);
+    const palette = [STANDARD_PENS[primaryPen], STANDARD_PENS[secondaryPen], STANDARD_PENS.black];
 
     const grammar = GRAMMARS[seed % GRAMMARS.length];
-    const scale = uniform(rng, 0.85, 1.15);
-    const rotationDeg = uniform(rng, -20, 20);
+    const scale = uniform(rng, 0.9, 1.15);
+    const rotationDeg = uniform(rng, -15, 15);
+    const center = [0.5 + uniform(rng, -0.09, 0.09), 0.5 + uniform(rng, -0.07, 0.09)];
 
-    return { seed, grammar, palette, scale, rotationDeg };
+    return { seed, grammar, penNames: [primaryPen, secondaryPen], palette, scale, rotationDeg, center };
+  }
+
+  // ---- accent dabs (mirrors _accent_dabs) ------------------------------------
+
+  function accentDabs(rng, anchors, color, n, scale, namePrefix = "accent") {
+    const strokes = [];
+    for (let i = 0; i < n; i++) {
+      const anchor = anchors[uniformInt(rng, 0, anchors.length - 1)];
+      const jitter = [uniform(rng, -0.02, 0.02) * scale, uniform(rng, -0.02, 0.02) * scale];
+      const origin = [anchor[0] + jitter[0], anchor[1] + jitter[1]];
+      const angleDeg = uniform(rng, 0, 360);
+      const radius = scale * uniform(rng, 0.018, 0.032);
+      const sweep = uniform(rng, 55, 95) * (rng() > 0.5 ? 1 : -1);
+      strokes.push({
+        name: `${namePrefix}_${i}`,
+        color,
+        width: uniform(rng, 0.2, 0.3),
+        points: clip01(arc(origin, radius, angleDeg, angleDeg + sweep, 6)),
+      });
+    }
+    return strokes;
   }
 
   // ---- grammars (mirror composition.py's _grammar_* functions) --------------
 
-  function grammarArcOverLine(rng, palette, scale) {
-    const c = [0.5, 0.5];
-    const half = 0.32 * scale;
-    const p0 = [c[0] - half, c[1] - half * uniform(rng, 0.8, 1.1)];
-    const p1 = [c[0] + half, c[1] + half * uniform(rng, 0.8, 1.1)];
-    const strokes = [
-      { name: "rising_diagonal", color: palette[0], points: clip01(line(p0, p1)) },
-      {
-        name: "closing_arc",
-        color: palette[0],
-        points: clip01(arc([p1[0], p1[1] - 0.12 * scale], 0.14 * scale, -40, 220)),
-      },
+  function grammarArcOverLine(rng, palette, scale, c) {
+    const half = 0.34 * scale;
+    const p0 = [c[0] - half, c[1] - half * uniform(rng, 0.75, 1.0)];
+    const p1 = [c[0] + half * uniform(rng, 0.9, 1.05), c[1] + half * uniform(rng, 0.85, 1.05)];
+    const mid = [
+      (p0[0] + p1[0]) / 2 + uniform(rng, -0.03, 0.03) * scale,
+      (p0[1] + p1[1]) / 2 + uniform(rng, 0.02, 0.07) * scale,
     ];
-    const accentOrigin = [c[0] + uniform(rng, -0.3, -0.1) * scale, c[1] + uniform(rng, -0.1, 0.1) * scale];
-    const accentEnd = [accentOrigin[0] + uniform(rng, 0.1, 0.22) * scale, accentOrigin[1] + uniform(rng, -0.05, 0.05) * scale];
-    strokes.push({ name: "horizon_accent", color: palette[2], points: clip01(line(accentOrigin, accentEnd)) });
-    const dashOrigin = [c[0] + uniform(rng, 0.05, 0.25) * scale, c[1] + uniform(rng, -0.25, -0.1) * scale];
-    const dashEnd = [dashOrigin[0] + uniform(rng, 0.06, 0.12) * scale, dashOrigin[1] + uniform(rng, 0.02, 0.06) * scale];
-    strokes.push({ name: "accent_dash", color: palette[2], points: clip01(line(dashOrigin, dashEnd)) });
+    const arcCenter = [p1[0] - 0.01, p1[1] - 0.13 * scale];
+
+    const strokes = [
+      { name: "rising_gesture", color: palette[0], width: 1.0, points: clip01(quadraticBezier(p0, mid, p1, 18)) },
+      { name: "closing_arc", color: palette[1], width: 0.72, points: clip01(arc(arcCenter, 0.16 * scale, -30, 200, 20)) },
+    ];
+
+    const offset = [uniform(rng, -0.02, 0.02) * scale, uniform(rng, 0.05, 0.09) * scale];
+    const echoP0 = [p0[0] + offset[0], p0[1] + offset[1]];
+    const echoP1 = [p1[0] + offset[0] * 0.6, p1[1] + offset[1] * 0.6];
+    const echoMid = [(echoP0[0] + echoP1[0]) / 2, (echoP0[1] + echoP1[1]) / 2 + uniform(rng, 0.02, 0.05) * scale];
+    strokes.push({ name: "echo_gesture", color: palette[0], width: 0.45, points: clip01(quadraticBezier(echoP0, echoMid, echoP1, 16)) });
+
+    const accentOrigin = [c[0] + uniform(rng, -0.28, -0.12) * scale, c[1] + uniform(rng, -0.14, -0.02) * scale];
+    const accentEnd = [accentOrigin[0] + uniform(rng, 0.12, 0.2) * scale, accentOrigin[1] + uniform(rng, -0.03, 0.03) * scale];
+    strokes.push({ name: "horizon_accent", color: palette[2], width: 0.4, points: clip01(line(accentOrigin, accentEnd, 8)) });
+
+    const anchors = [p0, p1, mid, arcCenter, echoP0, echoP1];
+    strokes.push(...accentDabs(rng, anchors, palette[2], MAX_STROKES - strokes.length, scale));
     return strokes;
   }
 
-  function grammarNestedCurves(rng, palette, scale) {
-    const c = [0.5, 0.5];
+  function grammarNestedCurves(rng, palette, scale, c) {
     const strokes = [];
-    for (let i = 0; i < 3; i++) {
-      const r = (0.14 + 0.09 * i) * scale;
-      const p0 = [c[0] - r, c[1] + r * 0.3];
-      const p1 = [c[0], c[1] - r * uniform(rng, 0.5, 0.9)];
-      const p2 = [c[0] + r, c[1] + r * 0.3];
-      strokes.push({ name: `nested_curve_${i}`, color: palette[i % 2], points: clip01(quadraticBezier(p0, p1, p2)) });
+    const colors = [palette[0], palette[1], palette[0], palette[1]];
+    const widths = [1.0, 0.8, 0.62, 0.45];
+    const anchors = [];
+    let outerP2 = null;
+    const nCurves = 4;
+    for (let i = 0; i < nCurves; i++) {
+      const r = (0.13 + 0.075 * i) * scale;
+      const lean = uniform(rng, -0.15, 0.15);
+      const p0 = [c[0] - r, c[1] + r * (0.25 + lean)];
+      const p1 = [c[0] + lean * r * 0.4, c[1] - r * uniform(rng, 0.55, 0.85)];
+      const p2 = [c[0] + r, c[1] + r * (0.3 - lean)];
+      if (i === nCurves - 1) outerP2 = p2;
+      anchors.push(p0, p2);
+      strokes.push({ name: `nested_curve_${i}`, color: colors[i], width: widths[i], points: clip01(quadraticBezier(p0, p1, p2, 16)) });
     }
-    const dashOrigin = [c[0] + uniform(rng, -0.3, 0.3) * scale, c[1] + uniform(rng, 0.2, 0.3) * scale];
-    const dashEnd = [dashOrigin[0] + uniform(rng, 0.06, 0.14) * scale, dashOrigin[1] + uniform(rng, -0.03, 0.03) * scale];
-    strokes.push({ name: "accent_dash", color: palette[2], points: clip01(line(dashOrigin, dashEnd)) });
+
+    const flourishDir = normalize([uniform(rng, 0.6, 1.0), uniform(rng, -0.1, 0.25)]);
+    const flourishLen = 0.09 * scale;
+    const dashOrigin = [outerP2[0] - flourishDir[0] * flourishLen * 0.2, outerP2[1] - flourishDir[1] * flourishLen * 0.2];
+    const dashEnd = [outerP2[0] + flourishDir[0] * flourishLen, outerP2[1] + flourishDir[1] * flourishLen];
+    strokes.push({ name: "flourish", color: palette[2], width: 0.42, points: clip01(line(dashOrigin, dashEnd, 8)) });
+
+    strokes.push(...accentDabs(rng, anchors, palette[2], MAX_STROKES - strokes.length, scale));
     return strokes;
   }
 
-  function grammarRadiatingStrokes(rng, palette, scale) {
-    const c = [0.5, 0.5];
-    const nRays = 4;
+  function grammarRadiatingStrokes(rng, palette, scale, c) {
     const strokes = [];
+    const anchors = [];
+    const nRays = 6;
+    const colors = [];
+    for (let i = 0; i < nRays; i++) colors.push(palette[i % 2]);
     const baseAngle = uniform(rng, 0, 360);
+    const spread = 360 / nRays;
     for (let i = 0; i < nRays; i++) {
-      const angle = ((baseAngle + i * (360 / nRays) + uniform(rng, -10, 10)) * Math.PI) / 180;
-      const length = (0.18 + 0.05 * (i % 2)) * scale;
-      const p0 = [c[0] + 0.05 * scale * Math.cos(angle), c[1] + 0.05 * scale * Math.sin(angle)];
+      const angle = ((baseAngle + i * spread + uniform(rng, -spread * 0.22, spread * 0.22)) * Math.PI) / 180;
+      const length = (0.13 + 0.1 * uniform(rng, 0.4, 1.0)) * scale;
+      const inner = (0.03 + 0.02 * uniform(rng, 0, 1)) * scale;
+      const p0 = [c[0] + inner * Math.cos(angle), c[1] + inner * Math.sin(angle)];
       const p1 = [c[0] + length * Math.cos(angle), c[1] + length * Math.sin(angle)];
-      strokes.push({ name: `ray_${i}`, color: palette[i % 2], points: clip01(line(p0, p1)) });
+      const width = i % 2 === 0 ? 0.85 : 0.55;
+      anchors.push(p1);
+      strokes.push({ name: `ray_${i}`, color: colors[i], width, points: clip01(line(p0, p1, 10)) });
     }
-    strokes.push({ name: "center_arc", color: palette[2], points: clip01(arc(c, 0.07 * scale, 0, 300)) });
+    strokes.push({
+      name: "center_arc",
+      color: palette[2],
+      width: 0.45,
+      points: clip01(arc(c, 0.065 * scale, uniform(rng, 0, 60), uniform(rng, 220, 300), 14)),
+    });
+    strokes.push(...accentDabs(rng, anchors, palette[2], MAX_STROKES - strokes.length, scale));
     return strokes;
   }
 
@@ -222,15 +305,14 @@
   function compose(answers) {
     const brief = deriveBrief(answers);
     const rng = mulberry32(brief.seed);
-    let strokes = GRAMMAR_FNS[brief.grammar](rng, brief.palette, brief.scale);
+    let strokes = GRAMMAR_FNS[brief.grammar](rng, brief.palette, brief.scale, brief.center);
     if (Math.abs(brief.rotationDeg) > 1e-6) {
-      const center = [0.5, 0.5];
-      strokes = strokes.map((s) => ({ ...s, points: clip01(rotatePoints(s.points, center, brief.rotationDeg)) }));
+      strokes = strokes.map((s) => ({ ...s, points: clip01(rotatePoints(s.points, brief.center, brief.rotationDeg)) }));
     }
     return { strokes, brief };
   }
 
-  // ---- rendering -------------------------------------------------------------
+  // ---- painterly rendering ----------------------------------------------
 
   const SVG_NS = "http://www.w3.org/2000/svg";
   const canvasEl = document.getElementById("canvas");
@@ -247,10 +329,35 @@
     xarm: "UFACTORY xArm",
   };
 
-  function pointsToPath(points) {
-    return points
-      .map(([x, y], i) => `${i === 0 ? "M" : "L"} ${(x * 100).toFixed(2)},${((1 - y) * 100).toFixed(2)}`)
-      .join(" ");
+  /** Build a tapered brush-stroke outline from a centerline (thin at both
+   * ends, full width in the middle) -- mirrors preview_compositions.py's
+   * tapered_polygon. Points are in the 0-100 SVG viewBox space already. */
+  function taperedPolygonPath(points, maxWidth) {
+    const n = points.length;
+    if (n < 2) return "";
+    const dirs = points.map((p, i) => {
+      const a = points[Math.max(0, i - 1)];
+      const b = points[Math.min(n - 1, i + 1)];
+      return normalize([b[0] - a[0], b[1] - a[1]]);
+    });
+    const left = [];
+    const right = [];
+    for (let i = 0; i < n; i++) {
+      const t = i / (n - 1);
+      const taper = Math.pow(Math.sin(Math.PI * t), 0.7);
+      const w = (maxWidth * (0.22 + 0.78 * taper)) / 2;
+      const [dx, dy] = dirs[i];
+      const perp = [-dy, dx];
+      left.push([points[i][0] + perp[0] * w, points[i][1] + perp[1] * w]);
+      right.push([points[i][0] - perp[0] * w, points[i][1] - perp[1] * w]);
+    }
+    const poly = left.concat(right.reverse());
+    return poly.map(([x, y], i) => `${i === 0 ? "M" : "L"} ${x.toFixed(2)},${y.toFixed(2)}`).join(" ") + " Z";
+  }
+
+  function toScreenPoints(points) {
+    // normalized [0,1]^2 -> 100x100 viewBox, y flipped so "up" feels up.
+    return points.map(([x, y]) => [x * 100, (1 - y) * 100]);
   }
 
   function renderPainting(strokes, brief, robotKey) {
@@ -258,27 +365,29 @@
     placeholderEl.hidden = true;
 
     strokes.forEach((stroke, i) => {
+      const screenPoints = toScreenPoints(stroke.points);
+      const d = taperedPolygonPath(screenPoints, 5.0 * stroke.width);
       const path = document.createElementNS(SVG_NS, "path");
-      path.setAttribute("d", pointsToPath(stroke.points));
-      path.setAttribute("fill", "none");
-      path.setAttribute("stroke", stroke.color);
-      path.setAttribute("stroke-width", "1.6");
-      path.setAttribute("stroke-linecap", "round");
-      path.setAttribute("stroke-linejoin", "round");
+      path.setAttribute("d", d);
+      path.setAttribute("fill", stroke.color);
+      path.setAttribute("fill-opacity", "0.96");
+      path.setAttribute("stroke", "none");
+      path.style.opacity = "0";
+      path.style.transformOrigin = "50% 50%";
       canvasEl.appendChild(path);
 
-      const len = path.getTotalLength();
-      path.style.strokeDasharray = `${len}`;
-      path.style.strokeDashoffset = `${len}`;
       path.animate(
-        [{ strokeDashoffset: len }, { strokeDashoffset: 0 }],
-        { duration: 650, delay: i * 420, easing: "ease-in-out", fill: "forwards" }
+        [
+          { opacity: 0, transform: "scale(0.97)" },
+          { opacity: 1, transform: "scale(1)" },
+        ],
+        { duration: 420, delay: i * 230, easing: "ease-out", fill: "forwards" }
       );
     });
 
     briefEl.hidden = false;
     briefGrammarEl.textContent = brief.grammar.replace(/_/g, " ");
-    briefStrokesEl.textContent = `${strokes.length} of 5`;
+    briefStrokesEl.textContent = `${strokes.length} of ${MAX_STROKES}`;
     briefRobotEl.textContent = ROBOT_LABELS[robotKey] || robotKey;
     briefPaletteEl.innerHTML = "";
     brief.palette.forEach((hex) => {

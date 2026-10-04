@@ -207,7 +207,7 @@ button.ghost:hover { border-color: var(--muted); }
   position: relative;
   width: 100%;
   aspect-ratio: 1 / 1;
-  background: #FFFFFF;
+  background: #F6F1E7;
   border: 1px solid var(--line);
   border-radius: 6px;
   overflow: hidden;

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Robot4Art</title>
-<meta name="description" content="Robot4Art: an interactive human-robot co-creation system for live minimalist painting. Answer a few questions, a robot paints the result in under five strokes.">
+<meta name="description" content="Robot4Art: an interactive human-robot co-creation system for live minimalist painting. Answer a few questions, a robot paints the result in under ten strokes.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2245%22 fill=%22%23161513%22/><path d=%22M20 70 L75 30%22 stroke=%22%23E07A3F%22 stroke-width=%226%22 fill=%22none%22 stroke-linecap=%22round%22/></svg>">
 <link rel="stylesheet" href="style.css">
 </head>
@@ -14,7 +14,7 @@
   <div class="hero-inner">
     <p class="eyebrow">Safe AI Lab · CMU &nbsp;×&nbsp; Poke Robotics &nbsp;×&nbsp; LKK Design</p>
     <h1>Robot4Art</h1>
-    <p class="tagline">Tell it a little about yourself. A robot arm paints an original, five-stroke abstract piece from the answer &mdash; live, in about two minutes.</p>
+    <p class="tagline">Tell it a little about yourself. A robot arm paints an original, ten-stroke abstract piece from the answer &mdash; live, in a couple of minutes.</p>
     <p class="hero-links">
       <a href="https://github.com/jack-sherman01/Robot4Art" target="_blank" rel="noopener">Source on GitHub</a>
       <span aria-hidden="true">·</span>
@@ -85,7 +85,7 @@
     <h2>Watch it paint</h2>
     <p class="panel-note">
       Recorded from this project's NVIDIA Isaac Sim validation run &mdash;
-      a simulated Franka Emika Panda arm executing a five-stroke plan via
+      a simulated Franka Emika Panda arm executing a ten-stroke plan via
       the RMPFlow motion controller. This is the actual recorded
       end-effector trajectory, not a mockup; see <code>sim/</code> in the
       repository for the pipeline that produced it.
@@ -111,7 +111,7 @@
     <h2>How it works</h2>
     <ol class="steps">
       <li><strong>Kiosk input.</strong> A visitor answers a few short, personal prompts and picks a robot platform.</li>
-      <li><strong>Semantic composition.</strong> The answers are composed into an artistic brief &mdash; a palette and a choice of parametric stroke "grammar" &mdash; and rendered as an ordered list of &le;5 vector strokes. This page runs that step directly in JavaScript.</li>
+      <li><strong>Semantic composition.</strong> The answers are composed into an artistic brief &mdash; a palette and a choice of parametric stroke "grammar" &mdash; and rendered as an ordered list of &le;10 vector strokes, each drawn with one of a small set of common pen colors &mdash; not custom-mixed paint. This page runs that step directly in JavaScript.</li>
       <li><strong>Stroke planning.</strong> Each stroke is a smooth planar curve with a pen-up/pen-down state &mdash; the same representation the robot execution layer consumes.</li>
       <li><strong>Robot-agnostic execution.</strong> The stroke plan is retargeted to the selected robot's task frame and physically executed. Validated so far in simulation (NVIDIA Isaac Sim, Franka arm) &mdash; see <code>sim/</code> in the repository.</li>
     </ol>
