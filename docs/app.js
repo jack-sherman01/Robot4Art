@@ -46,6 +46,56 @@
     blue: 0.61, purple: 0.76, pink: 0.92, brown: 0.08,
   };
 
+  // Visitor-facing style choices, each tied to one grammar + rendering
+  // treatment (mirrors composition.py's STYLES). Letting the visitor pick
+  // the style directly is both more satisfying to interact with and more
+  // reliable for aesthetic quality than a hash-derived 1-in-3 assignment.
+  const STYLES = {
+    modernist: { label: "Modernist Gesture", grammar: "arc_over_line" },
+    impressionist: { label: "Impressionist Bloom", grammar: "radiating_strokes" },
+    ink_wash: { label: "Ink Wash Minimal", grammar: "nested_curves" },
+  };
+  const DEFAULT_STYLE = "modernist";
+
+  // A short, templated explanation of *why* the piece looks the way it
+  // does, connecting the artwork back to the visitor's own answers --
+  // stands in for an LLM-written rationale, same reason deriveBrief is
+  // deterministic rather than a real model call.
+  const RATIONALE_TEMPLATES = {
+    arc_over_line:
+      'A single {primary} gesture rises across the canvas and closes with a {secondary} ' +
+      'arc — a confident line for a dream like “{dream}.” The fine black marks scattered ' +
+      "near it carry {moodArticle} {mood} energy, and the two pens were picked to echo " +
+      "“{color}” and the feel of {city}.",
+    nested_curves:
+      "Layers of {primary} and {secondary} curves nest inside one another, each a little " +
+      'larger than the last — like ripples spreading outward from “{dream}.” A small ' +
+      "flourish signs off the outermost curve, and the fine black accents nearby are " +
+      "{moodArticle} {mood} touch, in colors drawn from “{color}” and {city}.",
+    radiating_strokes:
+      "Strokes in {primary} and {secondary} radiate outward from a single point, like " +
+      'petals opening — a burst of energy for “{dream}.” The small black marks at their ' +
+      "tips add {moodArticle} {mood} rhythm, and the palette traces back to “{color}” " +
+      "and a touch of {city}.",
+  };
+
+  function article(word) {
+    return "aeiou".includes((word[0] || "").toLowerCase()) ? "an" : "a";
+  }
+
+  function rationaleFor(answers, brief) {
+    const template = RATIONALE_TEMPLATES[brief.grammar];
+    const mood = (answers.mood || "").trim() || "calm";
+    return template
+      .replaceAll("{primary}", brief.penNames[0])
+      .replaceAll("{secondary}", brief.penNames[1])
+      .replaceAll("{dream}", answers.dream.trim())
+      .replaceAll("{mood}", mood)
+      .replaceAll("{moodArticle}", article(mood))
+      .replaceAll("{color}", answers.color.trim())
+      .replaceAll("{city}", answers.city.trim());
+  }
+
   function hashStr(s) {
     let h = 0x811c9dc5;
     for (let i = 0; i < s.length; i++) {
@@ -169,8 +219,6 @@
 
   // ---- brief derivation (mirrors derive_brief) -------------------------------
 
-  const GRAMMARS = ["arc_over_line", "nested_curves", "radiating_strokes"];
-
   function deriveBrief(answers) {
     const seed = textSeed(answers.color, answers.city, answers.dream, answers.mood);
     const rng = mulberry32(seed);
@@ -179,12 +227,13 @@
     const [primaryPen, secondaryPen] = pickPens(hue);
     const palette = [STANDARD_PENS[primaryPen], STANDARD_PENS[secondaryPen], STANDARD_PENS.black];
 
-    const grammar = GRAMMARS[seed % GRAMMARS.length];
+    const style = STYLES[answers.style] ? answers.style : DEFAULT_STYLE;
+    const grammar = STYLES[style].grammar;
     const scale = uniform(rng, 0.9, 1.15);
     const rotationDeg = uniform(rng, -15, 15);
     const center = [0.5 + uniform(rng, -0.09, 0.09), 0.5 + uniform(rng, -0.07, 0.09)];
 
-    return { seed, grammar, penNames: [primaryPen, secondaryPen], palette, scale, rotationDeg, center };
+    return { seed, grammar, style, penNames: [primaryPen, secondaryPen], palette, scale, rotationDeg, center };
   }
 
   // ---- accent dabs (mirrors _accent_dabs) ------------------------------------
@@ -360,33 +409,67 @@
     return points.map(([x, y]) => [x * 100, (1 - y) * 100]);
   }
 
-  function renderPainting(strokes, brief, robotKey) {
+  /** Build the SVG element(s) for one stroke, in the rendering treatment
+   * for the given style -- a real visual difference per style, not just
+   * different geometry. Mirrors preview_compositions.py's render_stroke. */
+  function buildStrokeElement(stroke, style, rng) {
+    const screenPoints = toScreenPoints(stroke.points);
+
+    if (style === "impressionist") {
+      // A chain of overlapping dabs instead of one continuous shape --
+      // impasto texture, closer to how Impressionist brushwork reads up
+      // close, and visibly different from the other two styles.
+      const g = document.createElementNS(SVG_NS, "g");
+      const n = screenPoints.length;
+      const step = Math.max(1, Math.floor(n / 7));
+      const baseR = 2.8 * stroke.width;
+      for (let i = 0; i < n; i += step) {
+        const [x, y] = screenPoints[i];
+        const r = baseR * uniform(rng, 0.75, 1.15);
+        const dab = document.createElementNS(SVG_NS, "circle");
+        dab.setAttribute("cx", x.toFixed(2));
+        dab.setAttribute("cy", y.toFixed(2));
+        dab.setAttribute("r", r.toFixed(2));
+        dab.setAttribute("fill", stroke.color);
+        dab.setAttribute("fill-opacity", "0.88");
+        g.appendChild(dab);
+      }
+      return g;
+    }
+
+    const maxWidth = style === "modernist" ? 5.0 * stroke.width : 3.2 * stroke.width;
+    const fillOpacity = style === "modernist" ? "0.96" : "0.82";
+    const d = taperedPolygonPath(screenPoints, maxWidth);
+    const path = document.createElementNS(SVG_NS, "path");
+    path.setAttribute("d", d);
+    path.setAttribute("fill", stroke.color);
+    path.setAttribute("fill-opacity", fillOpacity);
+    path.setAttribute("stroke", "none");
+    return path;
+  }
+
+  function renderPainting(strokes, brief, robotKey, answers) {
     canvasEl.innerHTML = "";
     placeholderEl.hidden = true;
+    const rng = mulberry32(brief.seed ^ 0x9e3779b9);
 
+    const strokeDuration = 230;
     strokes.forEach((stroke, i) => {
-      const screenPoints = toScreenPoints(stroke.points);
-      const d = taperedPolygonPath(screenPoints, 5.0 * stroke.width);
-      const path = document.createElementNS(SVG_NS, "path");
-      path.setAttribute("d", d);
-      path.setAttribute("fill", stroke.color);
-      path.setAttribute("fill-opacity", "0.96");
-      path.setAttribute("stroke", "none");
-      path.style.opacity = "0";
-      path.style.transformOrigin = "50% 50%";
-      canvasEl.appendChild(path);
-
-      path.animate(
+      const el = buildStrokeElement(stroke, brief.style, rng);
+      el.style.opacity = "0";
+      el.style.transformOrigin = "50% 50%";
+      canvasEl.appendChild(el);
+      el.animate(
         [
           { opacity: 0, transform: "scale(0.97)" },
           { opacity: 1, transform: "scale(1)" },
         ],
-        { duration: 420, delay: i * 230, easing: "ease-out", fill: "forwards" }
+        { duration: 420, delay: i * strokeDuration, easing: "ease-out", fill: "forwards" }
       );
     });
 
     briefEl.hidden = false;
-    briefGrammarEl.textContent = brief.grammar.replace(/_/g, " ");
+    briefGrammarEl.textContent = (STYLES[brief.style] || {}).label || brief.style;
     briefStrokesEl.textContent = `${strokes.length} of ${MAX_STROKES}`;
     briefRobotEl.textContent = ROBOT_LABELS[robotKey] || robotKey;
     briefPaletteEl.innerHTML = "";
@@ -397,29 +480,64 @@
       sw.title = hex;
       briefPaletteEl.appendChild(sw);
     });
+
+    revealRationale(rationaleFor(answers, brief), strokes.length * strokeDuration);
+  }
+
+  // ---- rationale reveal ("why this painting") ----------------------------
+
+  const rationaleEl = document.getElementById("rationale");
+  const rationalePlaceholderEl = document.getElementById("rationale-placeholder");
+
+  /** Reveal the rationale sentence by sentence, timed to roughly track
+   * the stroke animation -- "shown on screen as it's created," not just
+   * dumped in at the end. Old spans are discarded via innerHTML = "" at
+   * the start of each call, so a resubmission simply orphans any
+   * still-animating spans from the previous run. */
+  function revealRationale(text, totalStrokeMs) {
+    rationalePlaceholderEl.hidden = true;
+    rationaleEl.innerHTML = "";
+    rationaleEl.hidden = false;
+
+    const sentences = text.match(/[^.]+\.\s*/g) || [text];
+    const perSentenceDelay = Math.max(350, totalStrokeMs / sentences.length);
+    sentences.forEach((sentence, i) => {
+      const span = document.createElement("span");
+      span.textContent = sentence;
+      span.style.opacity = "0";
+      rationaleEl.appendChild(span);
+      span.animate([{ opacity: 0 }, { opacity: 1 }], {
+        duration: 500,
+        delay: i * perSentenceDelay,
+        easing: "ease-out",
+        fill: "forwards",
+      });
+    });
   }
 
   // ---- wiring ------------------------------------------------------------
 
   const EXAMPLES = [
-    { color: "teal", city: "Austin", dream: "to make music", mood: "playful" },
-    { color: "sunset orange", city: "Paris", dream: "to open a bakery", mood: "cozy" },
-    { color: "deep purple", city: "Shanghai", dream: "to become a scientist", mood: "determined" },
-    { color: "forest green", city: "Tokyo", dream: "to write a novel", mood: "calm" },
-    { color: "blue", city: "Pittsburgh", dream: "to build robots that help people", mood: "curious" },
+    { color: "teal", city: "Austin", dream: "to make music", mood: "playful", style: "impressionist" },
+    { color: "sunset orange", city: "Paris", dream: "to open a bakery", mood: "cozy", style: "modernist" },
+    { color: "deep purple", city: "Shanghai", dream: "to become a scientist", mood: "determined", style: "ink_wash" },
+    { color: "forest green", city: "Tokyo", dream: "to write a novel", mood: "calm", style: "ink_wash" },
+    { color: "blue", city: "Pittsburgh", dream: "to build robots that help people", mood: "curious", style: "modernist" },
   ];
 
   const form = document.getElementById("kiosk-form");
 
   function runFromForm() {
+    const styleInput = form.querySelector('input[name="style"]:checked');
     const answers = {
       color: form.color.value || "blue",
       city: form.city.value || "a city",
       dream: form.dream.value || "a dream",
       mood: form.mood.value || "",
+      style: styleInput ? styleInput.value : DEFAULT_STYLE,
     };
     const { strokes, brief } = compose(answers);
-    renderPainting(strokes, brief, form.robot.value);
+    renderPainting(strokes, brief, form.robot.value, answers);
   }
 
   form.addEventListener("submit", (e) => {
@@ -433,6 +551,8 @@
     form.city.value = ex.city;
     form.dream.value = ex.dream;
     form.mood.value = ex.mood;
+    const styleRadio = form.querySelector(`input[name="style"][value="${ex.style}"]`);
+    if (styleRadio) styleRadio.checked = true;
     runFromForm();
   });
 })();

@@ -96,7 +96,7 @@ main {
   box-shadow: 0 1px 2px rgba(22,21,19,0.04), 0 12px 28px -14px rgba(22,21,19,0.12);
 }
 
-#how-it-works, #simulation { grid-column: 1 / -1; }
+#how-it-works, #simulation, #rationale-panel { grid-column: 1 / -1; }
 
 .video-wrap {
   margin: 1rem 0;
@@ -170,6 +170,49 @@ h2 {
   margin-top: 1.4rem;
 }
 
+.style-field {
+  border: none;
+  padding: 0;
+  margin: 0 0 1.1rem;
+}
+
+.style-field legend {
+  font-size: 0.88rem;
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+  padding: 0;
+}
+
+.style-option {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 0.6rem;
+  align-items: baseline;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  margin-bottom: 0.4rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.style-option:hover { border-color: #C7C2B6; }
+
+.style-option:has(input:checked) {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+
+.style-option input { margin: 0.2rem 0 0; }
+
+.style-name { font-size: 0.9rem; font-weight: 600; grid-column: 2; }
+
+.style-desc {
+  grid-column: 2;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
 button {
   font-family: inherit;
   font-size: 0.95rem;
@@ -229,6 +272,29 @@ button.ghost:hover { border-color: var(--muted); }
 }
 
 .canvas-overlay[hidden] { display: none; }
+
+.rationale-wrap {
+  background: var(--paper-dim);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 1rem 1.2rem;
+  min-height: 3.2rem;
+}
+
+.canvas-overlay-text {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+#rationale {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--ink);
+}
+
+#rationale[hidden] { display: none; }
 
 .brief {
   width: 100%;

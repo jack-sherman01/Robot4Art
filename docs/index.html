@@ -50,6 +50,24 @@
         <label for="mood">Mood right now <span class="optional">(optional)</span></label>
         <input id="mood" name="mood" type="text" maxlength="40" placeholder="e.g. curious">
       </div>
+      <fieldset class="field style-field">
+        <legend>Style</legend>
+        <label class="style-option">
+          <input type="radio" name="style" value="modernist" checked>
+          <span class="style-name">Modernist Gesture</span>
+          <span class="style-desc">Bold, confident sweeping strokes</span>
+        </label>
+        <label class="style-option">
+          <input type="radio" name="style" value="impressionist">
+          <span class="style-name">Impressionist Bloom</span>
+          <span class="style-desc">Petals of overlapping color dabs</span>
+        </label>
+        <label class="style-option">
+          <input type="radio" name="style" value="ink_wash">
+          <span class="style-name">Ink Wash Minimal</span>
+          <span class="style-desc">Thin, layered, quiet curves</span>
+        </label>
+      </fieldset>
       <div class="field">
         <label for="robot">Robot platform</label>
         <select id="robot" name="robot">
@@ -74,11 +92,25 @@
       </div>
     </div>
     <dl class="brief" id="brief" hidden>
-      <div><dt>Grammar</dt><dd id="brief-grammar">&mdash;</dd></div>
+      <div><dt>Style</dt><dd id="brief-grammar">&mdash;</dd></div>
       <div><dt>Strokes</dt><dd id="brief-strokes">&mdash;</dd></div>
       <div><dt>Robot</dt><dd id="brief-robot">&mdash;</dd></div>
       <div><dt>Palette</dt><dd id="brief-palette" class="swatches"></dd></div>
     </dl>
+  </section>
+
+  <section class="panel" id="rationale-panel">
+    <h2>Why this painting</h2>
+    <p class="panel-note">
+      A short, template-filled explanation connecting the artwork back to
+      your answers &mdash; revealed as the robot would paint it, stroke by
+      stroke. It stands in for the vision-language model's own explanation
+      in the full proposal; no model call happens here either.
+    </p>
+    <div class="rationale-wrap">
+      <p id="rationale-placeholder" class="canvas-overlay-text">Paint something to see why it looks the way it does.</p>
+      <p id="rationale" hidden></p>
+    </div>
   </section>
 
   <section class="panel" id="simulation">
