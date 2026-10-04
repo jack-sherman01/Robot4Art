@@ -13,9 +13,11 @@ the way it does. Built for public demonstration at
 [CoRL](https://www.corl.org/) (Conference on Robot Learning).
 
 **[Try it live →](https://jack-sherman01.github.io/Robot4Art/)** — generate
-a painting in your browser, and watch a video of the Isaac Sim simulation
-actually painting one. See [How it works](#how-it-works) below for what the
-demo does and doesn't cover.
+a painting in your browser, then see the same composition painted by a
+simulated Franka arm in NVIDIA Isaac Sim, side by side: what the composer
+generated vs. the real recorded video of the robot's full-body motion
+painting it. See [How it works](#how-it-works) below for what the demo
+does and doesn't cover.
 
 Robot4Art is a collaboration between the Safe AI Lab at Carnegie Mellon
 University, 破壳机器人 (Poke Robotics), and 洛可可创新设计集团 (LKK Design
@@ -52,8 +54,8 @@ published in this repository.
 | Piece | Status |
 | --- | --- |
 | Semantic composition (`sim/composition.py`) | Working. Deterministic grammar-based composer; the LLM call the design calls for is stubbed with a deterministic function (no model API access yet) — same answers always produce the same artwork. |
-| Web demo (`docs/`) | Working. JavaScript port of the composition step plus a video of the Isaac Sim run, published via GitHub Pages. No backend. |
-| Isaac Sim validation (`sim/franka_paint_sim.py`) | Working, via Docker (see [`sim/README.md`](sim/README.md)). Verified end-to-end with a simulated Franka arm: all 10 strokes execute and the recorded trajectory tracks the intended composition. Motion only — no ink/paint deposition model yet. |
+| Web demo (`docs/`) | Working. JavaScript port of the composition step, plus a real recorded Isaac Sim video of a Franka arm painting the same plan, side by side with a static render of what the composer generated. Published via GitHub Pages, no backend. |
+| Isaac Sim validation + video (`sim/franka_paint_sim.py`, `sim/franka_paint_video.py`) | Working, via Docker (see [`sim/README.md`](sim/README.md)). Verified end-to-end with a simulated Franka arm: all 10 strokes execute, the recorded trajectory tracks the intended composition, and the video shows real rendered full-body robot motion (not a 2D trace animation). Motion only — no ink/paint deposition model yet, so the canvas stays blank in the video. |
 | Kinova / xArm adapters | Not started. |
 | Physical hardware | Not started. |
 | Real VLM for composition | Not started (no model API access in the current dev environment). |

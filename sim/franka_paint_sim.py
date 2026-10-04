@@ -56,17 +56,8 @@ from isaacsim.robot.manipulators.examples.franka.controllers.rmpflow_controller 
 )
 
 from canvas import CANVAS_CENTER, CANVAS_SIZE, canvas_to_world, downward_orientation  # noqa: E402
-from composition import PromptAnswers, compose, rationale_for  # noqa: E402
-
-# A representative example visitor, standing in for live kiosk input --
-# same composer as the web demo (docs/app.js) and sim/preview_compositions.py.
-EXAMPLE_ANSWERS = PromptAnswers(
-    favorite_color="teal",
-    favorite_city="Pittsburgh",
-    dream="to build robots that help people",
-    mood="curious",
-    style="modernist",
-)
+from composition import compose, rationale_for  # noqa: E402
+from example_answers import EXAMPLE_ANSWERS  # noqa: E402
 
 
 def goto(world, controller, franka, articulation_controller, target_pos, target_orient, trace, stroke_name, pen_down):
