@@ -57,6 +57,21 @@
   };
   const DEFAULT_STYLE = "modernist";
 
+  // The robot's pen/brush holder carries a few distinct tool types, not
+  // just a few colors -- independent of which composition style/grammar
+  // is chosen, mirrors composition.py's BRUSHES. "floor" is the minimum
+  // width as a fraction of max width (1.0 = constant width, no taper;
+  // lower = tapers more toward the stroke's ends).
+  const BRUSHES = {
+    fine_pen: { label: "Fine Pen", article: "a", render: "line", widthMult: 0.45, floor: 0.85, opacity: 0.98 },
+    marker: { label: "Marker", article: "a", render: "line", widthMult: 0.75, floor: 0.55, opacity: 0.92 },
+    brush: { label: "Brush", article: "a", render: "line", widthMult: 1.0, floor: 0.22, opacity: 0.95 },
+    watercolor: { label: "Watercolor Dabs", article: "", render: "dabs", widthMult: 1.0, floor: 1.0, opacity: 0.85 },
+  };
+  // A tool that suits each style if the visitor doesn't override it --
+  // matches what shipped before the tool became independently selectable.
+  const DEFAULT_BRUSH_FOR_STYLE = { modernist: "brush", impressionist: "watercolor", ink_wash: "fine_pen" };
+
   // A short, templated explanation of *why* the piece looks the way it
   // does, connecting the artwork back to the visitor's own answers --
   // stands in for an LLM-written rationale, same reason deriveBrief is
@@ -84,8 +99,9 @@
   }
 
   function rationaleFor(answers, brief) {
-    const template = RATIONALE_TEMPLATES[brief.grammar];
+    const template = RATIONALE_TEMPLATES[brief.grammar] + " Laid down with {brushArticle}{brushLabel}.";
     const mood = (answers.mood || "").trim() || "calm";
+    const brush = BRUSHES[brief.brush];
     return template
       .replaceAll("{primary}", brief.penNames[0])
       .replaceAll("{secondary}", brief.penNames[1])
@@ -93,7 +109,9 @@
       .replaceAll("{mood}", mood)
       .replaceAll("{moodArticle}", article(mood))
       .replaceAll("{color}", answers.color.trim())
-      .replaceAll("{city}", answers.city.trim());
+      .replaceAll("{city}", answers.city.trim())
+      .replaceAll("{brushArticle}", brush.article ? brush.article + " " : "")
+      .replaceAll("{brushLabel}", brush.label.toLowerCase());
   }
 
   function hashStr(s) {
@@ -229,11 +247,12 @@
 
     const style = STYLES[answers.style] ? answers.style : DEFAULT_STYLE;
     const grammar = STYLES[style].grammar;
+    const brush = BRUSHES[answers.brush] ? answers.brush : DEFAULT_BRUSH_FOR_STYLE[style];
     const scale = uniform(rng, 0.9, 1.15);
     const rotationDeg = uniform(rng, -15, 15);
     const center = [0.5 + uniform(rng, -0.09, 0.09), 0.5 + uniform(rng, -0.07, 0.09)];
 
-    return { seed, grammar, style, penNames: [primaryPen, secondaryPen], palette, scale, rotationDeg, center };
+    return { seed, grammar, style, brush, penNames: [primaryPen, secondaryPen], palette, scale, rotationDeg, center };
   }
 
   // ---- accent dabs (mirrors _accent_dabs) ------------------------------------
@@ -368,6 +387,7 @@
   const placeholderEl = document.getElementById("canvas-placeholder");
   const briefEl = document.getElementById("brief");
   const briefGrammarEl = document.getElementById("brief-grammar");
+  const briefBrushEl = document.getElementById("brief-brush");
   const briefStrokesEl = document.getElementById("brief-strokes");
   const briefRobotEl = document.getElementById("brief-robot");
   const briefPaletteEl = document.getElementById("brief-palette");
@@ -381,7 +401,7 @@
   /** Build a tapered brush-stroke outline from a centerline (thin at both
    * ends, full width in the middle) -- mirrors preview_compositions.py's
    * tapered_polygon. Points are in the 0-100 SVG viewBox space already. */
-  function taperedPolygonPath(points, maxWidth) {
+  function taperedPolygonPath(points, maxWidth, floor = 0.22) {
     const n = points.length;
     if (n < 2) return "";
     const dirs = points.map((p, i) => {
@@ -394,7 +414,7 @@
     for (let i = 0; i < n; i++) {
       const t = i / (n - 1);
       const taper = Math.pow(Math.sin(Math.PI * t), 0.7);
-      const w = (maxWidth * (0.22 + 0.78 * taper)) / 2;
+      const w = (maxWidth * (floor + (1 - floor) * taper)) / 2;
       const [dx, dy] = dirs[i];
       const perp = [-dy, dx];
       left.push([points[i][0] + perp[0] * w, points[i][1] + perp[1] * w]);
@@ -410,19 +430,22 @@
   }
 
   /** Build the SVG element(s) for one stroke, in the rendering treatment
-   * for the given style -- a real visual difference per style, not just
-   * different geometry. Mirrors preview_compositions.py's render_stroke. */
-  function buildStrokeElement(stroke, style, rng) {
+   * for the given brush/tool -- a real visual difference per tool, not
+   * just different geometry, and independent of which style/grammar
+   * generated the stroke. Mirrors preview_compositions.py's
+   * render_stroke. */
+  function buildStrokeElement(stroke, brushKey, rng) {
     const screenPoints = toScreenPoints(stroke.points);
+    const brush = BRUSHES[brushKey];
 
-    if (style === "impressionist") {
+    if (brush.render === "dabs") {
       // A chain of overlapping dabs instead of one continuous shape --
-      // impasto texture, closer to how Impressionist brushwork reads up
-      // close, and visibly different from the other two styles.
+      // impasto texture, closer to how a loaded watercolor brush reads
+      // up close.
       const g = document.createElementNS(SVG_NS, "g");
       const n = screenPoints.length;
       const step = Math.max(1, Math.floor(n / 7));
-      const baseR = 2.8 * stroke.width;
+      const baseR = 2.8 * stroke.width * brush.widthMult;
       for (let i = 0; i < n; i += step) {
         const [x, y] = screenPoints[i];
         const r = baseR * uniform(rng, 0.75, 1.15);
@@ -431,19 +454,18 @@
         dab.setAttribute("cy", y.toFixed(2));
         dab.setAttribute("r", r.toFixed(2));
         dab.setAttribute("fill", stroke.color);
-        dab.setAttribute("fill-opacity", "0.88");
+        dab.setAttribute("fill-opacity", String(brush.opacity));
         g.appendChild(dab);
       }
       return g;
     }
 
-    const maxWidth = style === "modernist" ? 5.0 * stroke.width : 3.2 * stroke.width;
-    const fillOpacity = style === "modernist" ? "0.96" : "0.82";
-    const d = taperedPolygonPath(screenPoints, maxWidth);
+    const maxWidth = 5.0 * stroke.width * brush.widthMult;
+    const d = taperedPolygonPath(screenPoints, maxWidth, brush.floor);
     const path = document.createElementNS(SVG_NS, "path");
     path.setAttribute("d", d);
     path.setAttribute("fill", stroke.color);
-    path.setAttribute("fill-opacity", fillOpacity);
+    path.setAttribute("fill-opacity", String(brush.opacity));
     path.setAttribute("stroke", "none");
     return path;
   }
@@ -455,7 +477,7 @@
 
     const strokeDuration = 230;
     strokes.forEach((stroke, i) => {
-      const el = buildStrokeElement(stroke, brief.style, rng);
+      const el = buildStrokeElement(stroke, brief.brush, rng);
       el.style.opacity = "0";
       el.style.transformOrigin = "50% 50%";
       canvasEl.appendChild(el);
@@ -470,6 +492,7 @@
 
     briefEl.hidden = false;
     briefGrammarEl.textContent = (STYLES[brief.style] || {}).label || brief.style;
+    briefBrushEl.textContent = (BRUSHES[brief.brush] || {}).label || brief.brush;
     briefStrokesEl.textContent = `${strokes.length} of ${MAX_STROKES}`;
     briefRobotEl.textContent = ROBOT_LABELS[robotKey] || robotKey;
     briefPaletteEl.innerHTML = "";
@@ -518,11 +541,11 @@
   // ---- wiring ------------------------------------------------------------
 
   const EXAMPLES = [
-    { color: "teal", city: "Austin", dream: "to make music", mood: "playful", style: "impressionist" },
-    { color: "sunset orange", city: "Paris", dream: "to open a bakery", mood: "cozy", style: "modernist" },
-    { color: "deep purple", city: "Shanghai", dream: "to become a scientist", mood: "determined", style: "ink_wash" },
-    { color: "forest green", city: "Tokyo", dream: "to write a novel", mood: "calm", style: "ink_wash" },
-    { color: "blue", city: "Pittsburgh", dream: "to build robots that help people", mood: "curious", style: "modernist" },
+    { color: "teal", city: "Austin", dream: "to make music", mood: "playful", style: "impressionist", brush: "" },
+    { color: "sunset orange", city: "Paris", dream: "to open a bakery", mood: "cozy", style: "modernist", brush: "fine_pen" },
+    { color: "deep purple", city: "Shanghai", dream: "to become a scientist", mood: "determined", style: "ink_wash", brush: "watercolor" },
+    { color: "forest green", city: "Tokyo", dream: "to write a novel", mood: "calm", style: "ink_wash", brush: "" },
+    { color: "blue", city: "Pittsburgh", dream: "to build robots that help people", mood: "curious", style: "modernist", brush: "" },
   ];
 
   const form = document.getElementById("kiosk-form");
@@ -535,6 +558,7 @@
       dream: form.dream.value || "a dream",
       mood: form.mood.value || "",
       style: styleInput ? styleInput.value : DEFAULT_STYLE,
+      brush: form.brush.value || "",
     };
     const { strokes, brief } = compose(answers);
     renderPainting(strokes, brief, form.robot.value, answers);
@@ -551,6 +575,7 @@
     form.city.value = ex.city;
     form.dream.value = ex.dream;
     form.mood.value = ex.mood;
+    form.brush.value = ex.brush;
     const styleRadio = form.querySelector(`input[name="style"][value="${ex.style}"]`);
     if (styleRadio) styleRadio.checked = true;
     runFromForm();

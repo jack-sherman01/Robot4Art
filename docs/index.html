@@ -69,6 +69,16 @@
         </label>
       </fieldset>
       <div class="field">
+        <label for="brush">Pen / brush <span class="optional">(optional)</span></label>
+        <select id="brush" name="brush">
+          <option value="">Auto &mdash; matches the style</option>
+          <option value="fine_pen">Fine Pen</option>
+          <option value="marker">Marker</option>
+          <option value="brush">Brush</option>
+          <option value="watercolor">Watercolor Dabs</option>
+        </select>
+      </div>
+      <div class="field">
         <label for="robot">Robot platform</label>
         <select id="robot" name="robot">
           <option value="franka">Franka Emika Panda</option>
@@ -93,6 +103,7 @@
     </div>
     <dl class="brief" id="brief" hidden>
       <div><dt>Style</dt><dd id="brief-grammar">&mdash;</dd></div>
+      <div><dt>Brush</dt><dd id="brief-brush">&mdash;</dd></div>
       <div><dt>Strokes</dt><dd id="brief-strokes">&mdash;</dd></div>
       <div><dt>Robot</dt><dd id="brief-robot">&mdash;</dd></div>
       <div><dt>Palette</dt><dd id="brief-palette" class="swatches"></dd></div>
@@ -142,8 +153,8 @@
   <section class="panel" id="how-it-works">
     <h2>How it works</h2>
     <ol class="steps">
-      <li><strong>Kiosk input.</strong> A visitor answers a few short, personal prompts and picks a robot platform.</li>
-      <li><strong>Semantic composition.</strong> The answers are composed into an artistic brief &mdash; a palette and a choice of parametric stroke "grammar" &mdash; and rendered as an ordered list of &le;10 vector strokes, each drawn with one of a small set of common pen colors &mdash; not custom-mixed paint. This page runs that step directly in JavaScript.</li>
+      <li><strong>Kiosk input.</strong> A visitor answers a few short, personal prompts, picks a style and (optionally) a pen/brush tool, and picks a robot platform.</li>
+      <li><strong>Semantic composition.</strong> The answers are composed into an artistic brief &mdash; a palette and a stroke "grammar" tied to the chosen style &mdash; and rendered as an ordered list of &le;10 vector strokes, each drawn with one of a small set of common pen colors &mdash; not custom-mixed paint. The pen/brush tool (fine pen, marker, brush, or watercolor dabs) is a separate choice from style, since the robot's tool holder carries a few distinct tool types, not just colors. This page runs that step directly in JavaScript.</li>
       <li><strong>Stroke planning.</strong> Each stroke is a smooth planar curve with a pen-up/pen-down state &mdash; the same representation the robot execution layer consumes.</li>
       <li><strong>Robot-agnostic execution.</strong> The stroke plan is retargeted to the selected robot's task frame and physically executed. Validated so far in simulation (NVIDIA Isaac Sim, Franka arm) &mdash; see <code>sim/</code> in the repository.</li>
     </ol>
