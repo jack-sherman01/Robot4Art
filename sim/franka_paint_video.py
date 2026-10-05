@@ -1,4 +1,4 @@
-"""Isaac Sim standalone script: run the same 10-stroke painting plan as
+"""Isaac Sim standalone script: run the same 20-stroke painting plan as
 franka_paint_sim.py, but periodically capture real rendered viewport
 frames of the robot's full-body motion, for the "watch it paint" video
 on the website.

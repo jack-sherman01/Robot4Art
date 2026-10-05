@@ -1,5 +1,5 @@
 """Semantic-to-artwork composition: turn a visitor's kiosk answers into a
-10-stroke artwork plan.
+<=20-stroke artwork plan.
 
 Implements the "LLM-guided procedural composition" path described in the
 research proposal (private/proposal_en.tex, Sec. "Semantic-to-Artistic
@@ -39,7 +39,7 @@ from stroke_plan import Stroke, _arc, _line, _quadratic_bezier
 
 # Stroke budget: the physical robot holds this many strokes' worth of
 # execution time/pen changes (Sec. "Stroke Planning and Vectorization").
-MAX_STROKES = 10
+MAX_STROKES = 20
 
 # A handful of named colors a visitor might type, mapped to a base hue in
 # [0, 1), used to pick the nearest common pen color below. Anything
@@ -292,65 +292,111 @@ def _accent_dabs(
 
 
 def _grammar_arc_over_line(rng: np.random.Generator, palette: list[str], scale: float, c: np.ndarray) -> list[Stroke]:
-    """A confident rising gesture closed by a sweeping arc, a parallel
-    echo stroke for painterly depth, and a scatter of fine accent dabs."""
-    half = 0.34 * scale
+    """A confident rising gesture closed by a sweeping arc, layered echo
+    strokes for painterly depth, a smaller counter-gesture for balance,
+    and a denser scatter of fine accent dabs."""
+    half = 0.28 * scale
     p0 = c + np.array([-half, -half * rng.uniform(0.75, 1.0)])
     p1 = c + np.array([half * rng.uniform(0.9, 1.05), half * rng.uniform(0.85, 1.05)])
     mid = (p0 + p1) / 2 + np.array([rng.uniform(-0.03, 0.03), rng.uniform(0.02, 0.07)]) * scale
-    arc_center = p1 - np.array([0.01, 0.13 * scale])
+    arc_center = p1 - np.array([0.01, 0.11 * scale])
 
     strokes = [
         Stroke("rising_gesture", palette[0], _clip01(_quadratic_bezier(p0, mid, p1, n=18)), width=1.0),
-        Stroke("closing_arc", palette[1], _clip01(_arc(arc_center, 0.16 * scale, -30, 200, n=20)), width=0.72),
+        Stroke("closing_arc", palette[1], _clip01(_arc(arc_center, 0.11 * scale, -15, 150, n=20)), width=0.72),
     ]
 
-    # A second, thinner stroke roughly parallel to the main gesture --
-    # like a repeated brushstroke, not a perfect duplicate.
-    offset = np.array([rng.uniform(-0.02, 0.02), rng.uniform(0.05, 0.09)]) * scale
-    echo_p0, echo_p1 = p0 + offset, p1 + offset * 0.6
-    echo_mid = (echo_p0 + echo_p1) / 2 + np.array([0.0, rng.uniform(0.02, 0.05)]) * scale
-    strokes.append(
-        Stroke("echo_gesture", palette[0], _clip01(_quadratic_bezier(echo_p0, echo_mid, echo_p1, n=16)), width=0.45)
-    )
+    # Several thinner echoes roughly parallel to the main gesture, each
+    # offset and shrinking a bit more -- like repeated brushstrokes built
+    # up in a real gesture painting, not one lone duplicate.
+    anchors = [p0, p1, mid, arc_center]
+    n_echoes = 3
+    prev_p0, prev_p1 = p0, p1
+    for i in range(n_echoes):
+        offset = np.array([rng.uniform(-0.03, 0.03), rng.uniform(0.07, 0.11)]) * scale
+        echo_p0, echo_p1 = prev_p0 + offset, prev_p1 + offset * 0.6
+        echo_mid = (echo_p0 + echo_p1) / 2 + np.array([0.0, rng.uniform(0.02, 0.05)]) * scale
+        color = palette[0] if i % 2 == 0 else palette[1]
+        strokes.append(
+            Stroke(
+                f"echo_gesture_{i}",
+                color,
+                _clip01(_quadratic_bezier(echo_p0, echo_mid, echo_p1, n=16)),
+                width=0.45 - 0.1 * i,
+            )
+        )
+        anchors += [echo_p0, echo_p1]
+        prev_p0, prev_p1 = echo_p0, echo_p1
+
+    # A smaller counter-gesture angled well away from the main gesture
+    # (roughly perpendicular, not parallel) and anchored off to one side,
+    # for real compositional contrast instead of a second near-duplicate
+    # line buried in the same bundle.
+    main_dir = (p1 - p0)
+    main_dir = main_dir / np.linalg.norm(main_dir)
+    perp_dir = np.array([-main_dir[1], main_dir[0]])
+    counter_sign = 1.0 if rng.random() > 0.5 else -1.0
+    theta = np.radians(rng.uniform(75, 105) * counter_sign)
+    rot = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
+    counter_dir = rot @ main_dir
+    counter_len = half * rng.uniform(0.7, 0.95)
+    anchor = c + perp_dir * (0.14 * scale) * counter_sign
+    cq0 = anchor - counter_dir * counter_len * 0.35
+    cq1 = anchor + counter_dir * counter_len * 0.65
+    cq_mid = (cq0 + cq1) / 2 + perp_dir * rng.uniform(-0.02, 0.02) * scale
+    strokes.append(Stroke("counter_gesture", palette[1], _clip01(_quadratic_bezier(cq0, cq_mid, cq1, n=14)), width=0.55))
+    anchors += [cq0, cq1]
 
     accent_origin = c + np.array([rng.uniform(-0.28, -0.12), rng.uniform(-0.14, -0.02)]) * scale
     accent_end = accent_origin + np.array([rng.uniform(0.12, 0.2), rng.uniform(-0.03, 0.03)]) * scale
     strokes.append(Stroke("horizon_accent", palette[2], _clip01(_line(accent_origin, accent_end, n=8)), width=0.4))
 
-    anchors = [p0, p1, mid, arc_center, echo_p0, echo_p1]
     strokes += _accent_dabs(rng, anchors, palette[2], MAX_STROKES - len(strokes), scale)
     return strokes
 
 
 def _grammar_nested_curves(rng: np.random.Generator, palette: list[str], scale: float, c: np.ndarray) -> list[Stroke]:
     """Nested sweeping curves of increasing size, like layered brushwork,
-    a flourish anchored at the outermost tip, and fine accent dabs."""
+    short connecting tendrils between a few of them, flourishes at both
+    the innermost and outermost tips, and fine accent dabs."""
     strokes = []
-    colors = [palette[0], palette[1], palette[0], palette[1]]
-    widths = [1.0, 0.8, 0.62, 0.45]
+    n_curves = 6
+    colors = [palette[0], palette[1]] * (n_curves // 2 + 1)
     anchors = []
-    outer_p2 = None
-    n_curves = 4
+    curve_tips = []  # (p0, p2) per curve, for tendrils and flourish placement
+    # One shared "lean" and control-depth ratio for every curve in the
+    # family, so they actually read as concentric/nested -- only
+    # growing in size -- instead of each wobbling independently.
+    lean = rng.uniform(-0.15, 0.15)
+    depth_ratio = rng.uniform(0.55, 0.85)
     for i in range(n_curves):
-        r = (0.13 + 0.075 * i) * scale
-        lean = rng.uniform(-0.15, 0.15)
+        r = (0.08 + 0.05 * i) * scale
         p0 = c + np.array([-r, r * (0.25 + lean)])
-        p1 = c + np.array([lean * r * 0.4, -r * rng.uniform(0.55, 0.85)])
+        p1 = c + np.array([lean * r * 0.4, -r * depth_ratio])
         p2 = c + np.array([r, r * (0.3 - lean)])
-        if i == n_curves - 1:
-            outer_p2 = p2
+        curve_tips.append((p0, p2))
         anchors += [p0, p2]
+        width = 1.0 - 0.75 * (i / (n_curves - 1))
         strokes.append(
-            Stroke(f"nested_curve_{i}", colors[i], _clip01(_quadratic_bezier(p0, p1, p2, n=16)), width=widths[i])
+            Stroke(f"nested_curve_{i}", colors[i], _clip01(_quadratic_bezier(p0, p1, p2, n=16)), width=width)
         )
 
-    flourish_dir = np.array([rng.uniform(0.6, 1.0), rng.uniform(-0.1, 0.25)])
-    flourish_dir /= np.linalg.norm(flourish_dir)
-    flourish_len = 0.09 * scale
-    dash_origin = outer_p2 - flourish_dir * flourish_len * 0.2
-    dash_end = outer_p2 + flourish_dir * flourish_len
-    strokes.append(Stroke("flourish", palette[2], _clip01(_line(dash_origin, dash_end, n=8)), width=0.42))
+    # Short tendrils linking alternating curves -- like a painter
+    # connecting layered brushwork with quick fine-pen touches, not just
+    # isolated nested arcs.
+    for i in range(1, n_curves, 2):
+        p0 = curve_tips[i - 1][1]
+        p1 = curve_tips[i][1]
+        strokes.append(Stroke(f"tendril_{i}", palette[2], _clip01(_line(p0, p1, n=6)), width=0.3))
+
+    for tag, (p0, p2) in (("inner", curve_tips[0]), ("outer", curve_tips[-1])):
+        flourish_dir = np.array([rng.uniform(0.6, 1.0), rng.uniform(-0.1, 0.25)]) * (1 if tag == "outer" else -1)
+        flourish_dir /= np.linalg.norm(flourish_dir)
+        flourish_len = 0.09 * scale
+        anchor = p2 if tag == "outer" else p0
+        dash_origin = anchor - flourish_dir * flourish_len * 0.2
+        dash_end = anchor + flourish_dir * flourish_len
+        strokes.append(Stroke(f"flourish_{tag}", palette[2], _clip01(_line(dash_origin, dash_end, n=8)), width=0.42))
 
     strokes += _accent_dabs(rng, anchors, palette[2], MAX_STROKES - len(strokes), scale)
     return strokes
@@ -358,28 +404,49 @@ def _grammar_nested_curves(rng: np.random.Generator, palette: list[str], scale: 
 
 def _grammar_radiating_strokes(rng: np.random.Generator, palette: list[str], scale: float, c: np.ndarray) -> list[Stroke]:
     """Strokes radiating outward with organic (not perfectly even)
-    spacing and length, a broken arc, and fine accent dabs."""
+    spacing and length -- most straight rays, a few curved into petal
+    shapes for variety -- a broken double arc near the center, and fine
+    accent dabs."""
     strokes = []
     anchors = []
-    n_rays = 6
+    n_rays = 10
     colors = [palette[0], palette[1]] * (n_rays // 2 + 1)
     base_angle = rng.uniform(0, 360)
     spread = 360.0 / n_rays
     for i in range(n_rays):
         angle = np.radians(base_angle + i * spread + rng.uniform(-spread * 0.22, spread * 0.22))
-        length = (0.13 + 0.1 * rng.uniform(0.4, 1.0)) * scale
+        length = (0.11 + 0.11 * rng.uniform(0.4, 1.0)) * scale
         inner = (0.03 + 0.02 * rng.uniform(0, 1)) * scale
-        p0 = c + inner * np.array([np.cos(angle), np.sin(angle)])
-        p1 = c + length * np.array([np.cos(angle), np.sin(angle)])
+        direction = np.array([np.cos(angle), np.sin(angle)])
+        p0 = c + inner * direction
+        p1 = c + length * direction
         width = 0.85 if i % 2 == 0 else 0.55
         anchors.append(p1)
-        strokes.append(Stroke(f"ray_{i}", colors[i], _clip01(_line(p0, p1, n=10)), width=width))
+        if i % 3 == 2:
+            # Bend every third ray into a gentle petal curve, so the
+            # burst isn't made of perfectly identical straight spokes.
+            perp = np.array([-direction[1], direction[0]])
+            bend = perp * length * rng.uniform(0.12, 0.22) * (1 if rng.random() > 0.5 else -1)
+            mid = (p0 + p1) / 2 + bend
+            points = _quadratic_bezier(p0, mid, p1, n=12)
+        else:
+            points = _line(p0, p1, n=10)
+        strokes.append(Stroke(f"ray_{i}", colors[i], _clip01(points), width=width))
+
     strokes.append(
         Stroke(
             "center_arc",
             palette[2],
             _clip01(_arc(c, 0.065 * scale, rng.uniform(0, 60), rng.uniform(220, 300), n=14)),
             width=0.45,
+        )
+    )
+    strokes.append(
+        Stroke(
+            "center_arc_inner",
+            palette[2],
+            _clip01(_arc(c, 0.035 * scale, rng.uniform(120, 200), rng.uniform(260, 340), n=10)),
+            width=0.32,
         )
     )
     strokes += _accent_dabs(rng, anchors, palette[2], MAX_STROKES - len(strokes), scale)

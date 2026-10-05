@@ -3,7 +3,7 @@
 Three pieces, independently testable:
 
 1. **Semantic composition** (`composition.py`) -- turns a visitor's kiosk
-   answers into a <=10-stroke artwork plan, colored with a small set of
+   answers into a <=20-stroke artwork plan, colored with a small set of
    common pen colors (not custom-mixed paint). Pure Python/numpy/matplotlib,
    no simulator or GPU needed.
 2. **Isaac Sim validation** (`franka_paint_sim.py`) -- drives a robot arm
@@ -22,7 +22,7 @@ procedural composition" path from the research proposal (Sec.
 parametric grammars (`arc_over_line`, `nested_curves`,
 `radiating_strokes`) filled in with color/scale/placement derived from
 the visitor's answers, each extended with small anchored accent dabs up
-to a 10-stroke budget (`MAX_STROKES`). Colors come from a fixed set of
+to a 20-stroke budget (`MAX_STROKES`). Colors come from a fixed set of
 common pen colors (`STANDARD_PENS`) picked by nearest hue to the
 visitor's answer, not generated freely -- the robot holds a small set of
 interchangeable pens, not custom-mixed paint.
@@ -75,7 +75,7 @@ vision-language embedding) is not implemented.
 **Isaac Sim (`franka_paint_sim.py`): working**, via Docker under this
 account (see "Running the Isaac Sim validation" below), and wired
 directly to `composition.py` (a fixed example `PromptAnswers`, standing
-in for live kiosk input). Verified end-to-end with a Franka arm: all 10
+in for live kiosk input). Verified end-to-end with a Franka arm: all
 strokes complete and the recorded end-effector trace visibly tracks the
 intended composition (see `sim/output/paint_trace.png` after a run).
 
@@ -96,7 +96,7 @@ sensor entirely and using Kit's own viewport-capture utility
 viewport the main render loop already drives, auto-framed with
 `frame_viewport_prims` -- a different, simpler, standard code path, and
 it worked on the first real attempt. `franka_paint_video.py` runs the
-same 10-stroke plan as `franka_paint_sim.py` and periodically captures
+same 20-stroke plan as `franka_paint_sim.py` and periodically captures
 real rendered frames of the robot's full-body motion (most physics steps
 still run headless/fast; only every `--capture-every`-th step pays the
 rendering + capture cost -- 363 frames over 16350 steps took ~90s wall
@@ -117,14 +117,16 @@ Clean up with a throwaway root container rather than `rm` directly:
 `docker run --rm -v $(pwd)/sim:/workspace/sim alpine rm -rf /workspace/sim/output/frames`.
 
 **Not yet done:** Kinova and xArm adapters (the proposal's robot-agnostic
-execution layer), a real model call in `derive_brief`, and
-real-time-budget validation against the live-kiosk timing target (this
-run's *simulated* time was ~272s for 10 strokes, which is not directly
-comparable to real wall-clock execution speed).
+execution layer), a hosted backend so the live per-visitor web demo can
+call a real model too (see `llm_composer.py` above), and
+real-time-budget validation against the live-kiosk timing target (an
+earlier 10-stroke run's *simulated* time was ~272s, which is not directly
+comparable to real wall-clock execution speed, and will grow further now
+that the budget is 20 strokes).
 
 ## Files
 
-- `composition.py` -- visitor answers -> artistic brief -> <=10-stroke
+- `composition.py` -- visitor answers -> artistic brief -> <=20-stroke
   plan, colored from a fixed set of common pen colors. No simulator
   needed; see `preview_compositions.py`.
 - `preview_compositions.py` -- renders example compositions to

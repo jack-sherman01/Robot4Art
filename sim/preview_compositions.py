@@ -2,7 +2,7 @@
 
 Does not need Isaac Sim -- this only exercises composition.py, which is
 pure Python/numpy/matplotlib. Useful for checking the grammar/style/brush
-library (sim/composition.py) produces sane, on-canvas, <=10-stroke
+library (sim/composition.py) produces sane, on-canvas, <=20-stroke
 artwork without waiting on a robot simulator.
 
 Style (composition grammar: arc-over-line / nested curves / radiating

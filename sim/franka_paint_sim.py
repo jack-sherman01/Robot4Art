@@ -1,4 +1,4 @@
-"""Isaac Sim standalone script: drive a Franka arm through a 10-stroke
+"""Isaac Sim standalone script: drive a Franka arm through a 20-stroke
 painting plan on a virtual canvas, headless, and record the result.
 
 This is the Phase-0 simulation validation step described in the research
