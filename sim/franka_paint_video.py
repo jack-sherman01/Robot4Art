@@ -62,8 +62,7 @@ from omni.kit.viewport.utility import capture_viewport_to_file, frame_viewport_p
 from pxr import UsdLux  # noqa: E402
 
 from canvas import CANVAS_CENTER, CANVAS_SIZE, canvas_to_world, downward_orientation  # noqa: E402
-from composition import strokes_from_brief  # noqa: E402
-from example_answers import load_example_brief  # noqa: E402
+from example_answers import load_example_painting  # noqa: E402
 
 
 class FrameCounter:
@@ -139,9 +138,8 @@ def main():
     orientation = downward_orientation()
     counter = FrameCounter(viewport, args.frames_dir, args.capture_every, args.capture_pumps)
 
-    brief, rationale = load_example_brief()
-    plan = strokes_from_brief(brief)
-    print(f"[composition] style={brief.style} pens={brief.pen_names} strokes={len(plan)}", flush=True)
+    plan, brush, rationale = load_example_painting()
+    print(f"[composition] brush={brush} strokes={len(plan)}", flush=True)
     print(f"[rationale] {rationale}", flush=True)
     wall_start = time.time()
 

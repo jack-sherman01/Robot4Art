@@ -127,18 +127,20 @@
   <section class="panel" id="simulation">
     <h2>Think first, then paint it exactly</h2>
     <p class="panel-note">
-      For this example, a real Claude model decides the whole piece
-      <em>before</em> the robot moves &mdash; the grammar, the two pen
-      colors, the brush, and the rationale below are genuine model output,
-      not a template (see <code>sim/llm_composer.py</code>). The
-      interactive demo above runs a deterministic client-side stand-in
-      instead, since a static page with no backend can't make a real model
-      call. The robot then reproduces the model's exact plan in NVIDIA
-      Isaac Sim. Left: what the model composed. Right: the actual recorded
-      simulation of a Franka Emika Panda arm, full body, painting that
-      same plan via the RMPFlow motion controller &mdash; not a mockup;
-      see <code>sim/</code> in the repository for the pipeline that
-      produced both.
+      For this example, a real Claude model paints the whole piece
+      <em>before</em> the robot moves &mdash; not picking from a few
+      code-written templates, but directly choosing every stroke's shape,
+      color, and placement itself (see
+      <code>sim/llm_composer.py</code>). The rationale below is the
+      model's own unedited explanation of the composition it designed.
+      The interactive demo above runs a deterministic, template-based
+      client-side stand-in instead, since a static page with no backend
+      can't make a real model call. The robot then reproduces the
+      model's exact plan in NVIDIA Isaac Sim. Left: what the model
+      painted. Right: the actual recorded simulation of a Franka Emika
+      Panda arm, full body, painting that same plan via the RMPFlow
+      motion controller &mdash; not a mockup; see <code>sim/</code> in
+      the repository for the pipeline that produced both.
     </p>
     <div class="compare-grid">
       <figure class="compare-item">
@@ -157,17 +159,19 @@
       </figure>
     </div>
     <blockquote class="llm-rationale">
-      &ldquo;We center the piece on radiating_strokes because curious,
-      outward-reaching energy matches a mood of curiosity and an
-      aspiration to build robots that help people &mdash; each stroke
-      pushes out from a shared core like an idea branching into action.
-      Teal as the primary pen honors the visitor's stated favorite color
-      directly, while blue as the secondary nods to Pittsburgh's rivers
-      and steel-blue skyline. We chose the marker for crisp, confident
-      lines with just enough taper to feel hand-made rather than
-      mechanical, and a slight clockwise rotation and modest upscale give
-      the burst a sense of forward motion and openness.&rdquo;
-      <footer>&mdash; Claude, composing for favorite color
+      &ldquo;We built the whole piece around one unresolved teal arc that
+      spirals up out of the lower-left and trails off into open air near
+      the top right, like curiosity itself &mdash; a line that keeps
+      searching instead of closing a shape. In the bottom-left corner,
+      two separate blue strokes converge and then continue on as a
+      single teal line, a quiet nod to Pittsburgh's three rivers meeting
+      at the Point and turning into the visitor's favorite color. Lower
+      right, a small orange figure reaches its arm toward a pink mark, a
+      plain-spoken gesture for a robot built to help a person, while a
+      thin purple loop up top and a few grounding black, brown, and green
+      strokes keep the composition anchored without ever closing off the
+      big teal gesture's room to wander.&rdquo;
+      <footer>&mdash; Claude, painting for favorite color
       &ldquo;teal&rdquo;, city &ldquo;Pittsburgh&rdquo;, dream &ldquo;to
       build robots that help people&rdquo;, mood &ldquo;curious&rdquo;</footer>
     </blockquote>

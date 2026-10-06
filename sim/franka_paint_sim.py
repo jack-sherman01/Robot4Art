@@ -56,8 +56,7 @@ from isaacsim.robot.manipulators.examples.franka.controllers.rmpflow_controller 
 )
 
 from canvas import CANVAS_CENTER, CANVAS_SIZE, canvas_to_world, downward_orientation  # noqa: E402
-from composition import strokes_from_brief  # noqa: E402
-from example_answers import load_example_brief  # noqa: E402
+from example_answers import load_example_painting  # noqa: E402
 
 
 def goto(world, controller, franka, articulation_controller, target_pos, target_orient, trace, stroke_name, pen_down):
@@ -111,9 +110,8 @@ def main():
     articulation_controller = franka.get_articulation_controller()
     orientation = downward_orientation()
 
-    brief, rationale = load_example_brief()
-    plan = strokes_from_brief(brief)
-    print(f"[composition] style={brief.style} pens={brief.pen_names} strokes={len(plan)}", flush=True)
+    plan, brush, rationale = load_example_painting()
+    print(f"[composition] brush={brush} strokes={len(plan)}", flush=True)
     print(f"[rationale] {rationale}", flush=True)
     trace = []
     wall_start = time.time()
@@ -147,9 +145,7 @@ def main():
                 "sim_seconds": len(trace) * world.get_physics_dt(),
                 "strokes": [s.name for s in plan],
                 "stroke_colors": {s.name: s.color for s in plan},
-                "grammar": brief.grammar,
-                "style": brief.style,
-                "pen_names": brief.pen_names,
+                "brush": brush,
                 "rationale": rationale,
                 "trace": trace,
             },

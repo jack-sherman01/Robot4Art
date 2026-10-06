@@ -13,24 +13,22 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from composition import strokes_from_brief
-from example_answers import load_example_brief
+from example_answers import load_example_painting
 from preview_compositions import CANVAS_BG, render_stroke
 
 OUT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "output", "target_painting.png")
 
 
 def main():
-    brief, rationale = load_example_brief()
-    strokes = strokes_from_brief(brief)
-    rng = np.random.default_rng(brief.seed)
-    print(f"[composition] style={brief.style} brush={brief.brush} pens={brief.pen_names}")
+    strokes, brush, rationale = load_example_painting()
+    rng = np.random.default_rng(0)
+    print(f"[composition] brush={brush} strokes={len(strokes)}")
     print(f"[rationale] {rationale}")
 
     fig, ax = plt.subplots(figsize=(6, 6))
     fig.patch.set_facecolor(CANVAS_BG)
     for s in strokes:
-        render_stroke(ax, s, brief.brush, rng)
+        render_stroke(ax, s, brush, rng)
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
     ax.set_aspect("equal")

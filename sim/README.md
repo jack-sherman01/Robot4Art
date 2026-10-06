@@ -44,27 +44,41 @@ created this way" explanation shown on the web demo as the piece is
 painted, standing in for the same explanation an LLM would write.
 
 The "which grammar, what parameters" choice the proposal originally
-assigned to an LLM has two implementations now. `derive_brief` is a
-deterministic stand-in (net of the visitor's style pick, a pure function
-of the answers) -- this is what the interactive GitHub Pages demo runs
-client-side, since a static page with no backend can't make a real model
-call. `llm_composer.derive_brief_llm` asks an actual Claude model instead,
-by invoking the already-authenticated `claude` CLI headlessly
-(`claude -p --restricted --model <model> --output-format json`) -- no
-separate API key needed in this dev environment. Both produce the same
-`ArtisticBrief` shape, so `strokes_from_brief` (the actual curve-geometry
-rendering) is unaffected either way; only the creative decision differs.
+assigned to an LLM has two implementations now, and they differ in a
+more fundamental way than just "deterministic vs. model-backed":
+`derive_brief` picks between a handful of hand-written procedural
+grammars (`arc_over_line`/`nested_curves`/`radiating_strokes`) -- this is
+what the interactive GitHub Pages demo runs client-side, since a static
+page with no backend can't make a real model call, and it's still
+useful as a fast, free, always-available preview. `llm_composer.py` is a
+genuinely different approach: it asks a real Claude model (via the
+already-authenticated `claude` CLI, headlessly --
+`claude -p --restricted --model <model> --output-format json`, no
+separate API key needed in this dev environment) to directly author
+every stroke -- its shape (2-6 points the model places itself, smoothed
+into a curve by `stroke_plan.catmull_rom`), its color, its weight -- not
+just pick a named template. Only the physical constraints are fixed in
+code (stroke budget, the pen-color palette, one brush for the whole
+piece); the actual composition is the model's, not a human's. This
+replaced an earlier version of `llm_composer.py` that only had the model
+choose a grammar name and two colors (same limitation as `derive_brief`,
+just with better prose for the "why") -- that version still read as
+code-generated art no matter what the model picked, since the shapes
+themselves were fixed in advance.
+
 The real-model path is used for the one-off Isaac Sim example painting:
-`generate_example_brief.py` calls it once and caches the result to
-`example_brief.json` (committed, not gitignored, since it's the one real
-model decision the published artifacts show) -- `example_answers.py`'s
-`load_example_brief()` loads that cache rather than re-calling the model
-on every pipeline run (slow, costs money, and a fresh call could disagree
-with a previous one). Re-run `generate_example_brief.py` manually to get a
-new model decision; everything downstream picks it up automatically.
-A live per-visitor real-model version of the public web demo would need
-its own hosted backend and API key -- a distinct cost/latency/abuse-surface
+`generate_example_brief.py` calls `llm_composer.derive_painting_llm`
+once and caches the result to `example_brief.json` (committed, not
+gitignored, since it's the one real model decision the published
+artifacts show) -- `example_answers.py`'s `load_example_painting()`
+loads that cache rather than re-calling the model on every pipeline run
+(slow, costs real money, and a fresh call could disagree with a previous
+one). Re-run `generate_example_brief.py` manually to get a new model
+decision; everything downstream picks it up automatically. A live
+per-visitor real-model version of the public web demo would need its
+own hosted backend and API key -- a distinct cost/latency/abuse-surface
 decision, not yet made.
+
 Run `python3 sim/preview_compositions.py` to render example outputs
 (including deliberately non-default style/brush pairings, to show
 they're independent choices) to `sim/output/compositions/examples.png`
@@ -144,19 +158,23 @@ that the budget is 20 strokes).
 - `canvas.py` -- canvas geometry and the normalized-canvas-coords ->
   world-pose transform shared by any robot adapter.
 - `stroke_plan.py` -- geometry primitives (`Stroke`, line/arc/bezier
-  helpers) `composition.py` builds artwork plans from.
-- `llm_composer.py` -- real Claude-model-driven alternative to
-  `composition.py`'s `derive_brief`, via the headless `claude` CLI.
-- `generate_example_brief.py` -- one-off script: calls `llm_composer` for
-  `EXAMPLE_ANSWERS` and writes `example_brief.json`. Run manually when
-  `EXAMPLE_ANSWERS` changes; not called automatically.
-- `example_brief.json` -- cached real-model decision for the published
-  example painting (committed, not gitignored).
+  helpers, `catmull_rom` for smoothing a handful of model-chosen points
+  into a curve) `composition.py` and `llm_composer.py` build artwork
+  plans from.
+- `llm_composer.py` -- has a real Claude model directly author every
+  stroke (shape, color, weight) via the headless `claude` CLI, instead
+  of `composition.py`'s hand-written procedural grammars.
+- `generate_example_brief.py` -- one-off script: calls
+  `llm_composer.derive_painting_llm` for `EXAMPLE_ANSWERS` and writes
+  `example_brief.json`. Run manually when `EXAMPLE_ANSWERS` changes; not
+  called automatically.
+- `example_brief.json` -- cached real-model painting for the published
+  example (committed, not gitignored).
 - `example_answers.py` -- the one fixed example `PromptAnswers` used
   everywhere a representative composition is needed (Isaac Sim
   validation, the robot video, the static reference image), plus
-  `load_example_brief()` which loads the cached real-model brief above,
-  so all three stay in sync.
+  `load_example_painting()` which loads the cached real-model painting
+  above, so all three stay in sync.
 - `franka_paint_sim.py` -- the Isaac Sim standalone script that runs the
   simulation and records the trace/trace-plot, using `composition.py`'s
   output. Headless/fast -- no rendering.
