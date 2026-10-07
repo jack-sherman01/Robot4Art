@@ -3,19 +3,19 @@
 An interactive human-robot co-creation system for live minimalist painting.
 
 A visitor answers a few short, personal prompts — favorite color, favorite
-city, a current dream or aspiration — picks an artistic style, optionally
-picks a pen/brush tool, and picks a robot platform. The answers are
-composed into an original abstract artwork constrained to roughly ten
-brush strokes drawn with a small set of common pen colors (not
-custom-mixed paint), which a robot arm then paints live in a couple of
-minutes, alongside a short on-screen explanation of why the piece looks
-the way it does. Built for public demonstration at
+city, a current dream or aspiration — and picks a robot platform. A real
+Claude model directly composes the piece: every stroke's own shape, pen
+color, and weight, up to 20 strokes drawn with a small set of common pen
+colors (not custom-mixed paint). A robot arm then paints it live in a
+couple of minutes, alongside the model's own unedited explanation of why
+the piece looks the way it does. Built for public demonstration at
 [CoRL](https://www.corl.org/) (Conference on Robot Learning).
 
 **[Try it live →](https://jack-sherman01.github.io/Robot4Art/)** — generate
-a painting in your browser, then see the same composition painted by a
-simulated Franka arm in NVIDIA Isaac Sim, side by side: what the composer
-generated vs. the real recorded video of the robot's full-body motion
+a painting in your browser (a real model call via a small backend — see
+[`worker/`](worker/)), then see the same composition painted by a
+simulated Franka arm in NVIDIA Isaac Sim, side by side: what the model
+composed vs. the real recorded video of the robot's full-body motion
 painting it. See [How it works](#how-it-works) below for what the demo
 does and doesn't cover.
 
@@ -25,21 +25,22 @@ Group).
 
 ## How it works
 
-1. **Kiosk input.** A visitor answers a few short, personal prompts, picks
-   a style (Modernist Gesture, Impressionist Bloom, or Ink Wash Minimal),
-   optionally picks a pen/brush tool (Fine Pen, Marker, Brush, or
-   Watercolor Dabs — independent of style, since the robot's tool holder
-   carries a few distinct tool types, not just colors), and picks a robot
-   platform (Franka Emika Panda, Kinova Gen3, or UFACTORY xArm).
-2. **Semantic composition.** The answers are composed into an artistic
-   brief — a palette and a stroke "grammar" tied to the chosen style — and
-   rendered as an ordered list of ≤10 vector strokes in a small set of
-   common pen colors. ([`sim/composition.py`](sim/composition.py),
-   also what the [GitHub Pages demo](https://jack-sherman01.github.io/Robot4Art/)
-   runs client-side in JavaScript.) A short templated explanation ties the
-   result back to the visitor's own answers and is revealed on screen as
-   the piece is painted.
-3. **Stroke planning.** Each stroke is a smooth planar curve with a
+1. **Kiosk input.** A visitor answers a few short, personal prompts and
+   picks a robot platform (Franka Emika Panda, Kinova Gen3, or UFACTORY
+   xArm).
+2. **Semantic composition.** A real Claude model directly authors the
+   piece — every stroke's own 2-6 control points, pen color, and weight,
+   up to 20 strokes from a small set of common pen colors, plus one
+   brush/tool it also chooses — not picking from a template. The
+   [GitHub Pages demo](https://jack-sherman01.github.io/Robot4Art/) calls
+   a small Cloudflare Worker backend that holds the model API key
+   server-side ([`worker/`](worker/)); if that's unreachable, a fast
+   deterministic local preview ([`sim/composition.py`](sim/composition.py),
+   ported to client-side JavaScript) takes over instead, clearly labeled
+   as such. Either way the model's (or the preview's) own explanation is
+   revealed on screen as the piece is painted.
+3. **Stroke planning.** The model's handful of control points per stroke
+   are smoothed into a dense curve (Catmull-Rom spline) with a
    pen-up/pen-down state — the shared representation between the
    generative step and the robot execution step.
 4. **Robot-agnostic execution.** The stroke plan is retargeted to the
@@ -53,19 +54,19 @@ published in this repository.
 
 | Piece | Status |
 | --- | --- |
-| Semantic composition (`sim/composition.py`) | Working. Deterministic, procedural — picks between a handful of hand-written stroke grammars. What the interactive web demo runs client-side, since a static page can't make a real model call. |
-| Real LLM composition (`sim/llm_composer.py`) | Working. A real Claude model (via the headless `claude` CLI, no separate API key needed) directly authors every stroke's shape, color, and weight — not picking from a template, writing the actual composition itself — plus its own unedited rationale. Used to generate the cached example painting (`sim/example_brief.json`) behind the Isaac Sim example below — not wired into the live client-side web demo, which would need its own hosted backend. |
-| Web demo (`docs/`) | Working. JavaScript port of the deterministic composition step, plus a real recorded Isaac Sim video of a Franka arm painting a real-Claude-authored piece, side by side with a static render of what the model painted. Published via GitHub Pages, no backend. |
-| Isaac Sim validation + video (`sim/franka_paint_sim.py`, `sim/franka_paint_video.py`) | Working, via Docker (see [`sim/README.md`](sim/README.md)). Verified end-to-end with a simulated Franka arm: all 10 strokes execute, the recorded trajectory tracks the intended composition, and the video shows real rendered full-body robot motion (not a 2D trace animation). Motion only — no ink/paint deposition model yet, so the canvas stays blank in the video. |
+| Deterministic composition (`sim/composition.py`) | Working. Picks between a handful of hand-written stroke grammars — the local-preview fallback for the web demo, and still useful as a fast, free, simulator-free check of the geometry/rendering pipeline. |
+| Real LLM composition (`sim/llm_composer.py`, `worker/`) | Working, two ways to call it. Batch: the headless `claude` CLI (no separate API key needed), used to generate the cached Isaac Sim example painting. Live: a Cloudflare Worker (`worker/`) that holds a real Anthropic API key server-side and powers the public web demo's "Paint it" button — rate-limited per-IP and with a global daily cap since it spends real money per request. Both ask the model to directly author every stroke's shape, color, and weight, not pick from a template. |
+| Web demo (`docs/`) | Working. Calls the live Worker for a real composition; falls back to the deterministic local preview (clearly labeled) if that's unreachable. Also shows a real recorded Isaac Sim video of a Franka arm painting a real-Claude-authored piece, side by side with a static render of what the model painted. Published via GitHub Pages; the Worker is the only non-static piece. |
+| Isaac Sim validation + video (`sim/franka_paint_sim.py`, `sim/franka_paint_video.py`) | Working, via Docker (see [`sim/README.md`](sim/README.md)). Verified end-to-end with a simulated Franka arm: all strokes execute and the recorded trajectory tracks the intended composition. The video now also renders painted stroke marks on the canvas (one mesh per stroke) instead of staying blank — though the live viewport capture has an intermittent freeze bug under investigation that can leave later strokes under-rendered in the recorded video. |
 | Kinova / xArm adapters | Not started. |
 | Physical hardware | Not started. |
-| Live per-visitor real-model composition | Not started — needs a hosted backend and API key, a separate cost/latency/abuse-surface decision from the batch use above. |
 
 ## Repository layout
 
 ```
 sim/            Composition module + Isaac Sim simulation pipeline (Python)
-docs/           Static web demo of the composition step, served via GitHub Pages
+docs/           Static web demo, served via GitHub Pages
+worker/         Cloudflare Worker backend for the live web demo's real model calls
 private/        Research proposal and other internal drafts (gitignored, not in this repo's history)
 ```
 

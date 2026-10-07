@@ -13,6 +13,12 @@
 (() => {
   "use strict";
 
+  // Cloudflare Worker that proxies composition requests to a real Claude
+  // model -- see worker/README.md. The key itself never reaches this
+  // file; the worker holds it server-side. Filled in after the worker
+  // is deployed (see worker/README.md's deploy steps).
+  const COMPOSER_API_URL = "https://robot4art-composer.YOUR-SUBDOMAIN.workers.dev";
+
   const MAX_STROKES = 10;
 
   // ---- common pen colors (mirrors composition.py's STANDARD_PENS) ---------
@@ -214,6 +220,36 @@
     return pts;
   }
 
+  /** Smooth a handful of control points (the model's own choice of 2-6
+   * stroke points) into a dense path -- mirrors stroke_plan.catmull_rom.
+   * Unlike a bezier, this passes exactly through every given point. */
+  function catmullRom(points, nPerSegment = 10) {
+    const n = points.length;
+    if (n < 2) return points;
+    if (n === 2) return line(points[0], points[1], nPerSegment);
+    const pad = [
+      [2 * points[0][0] - points[1][0], 2 * points[0][1] - points[1][1]],
+      ...points,
+      [2 * points[n - 1][0] - points[n - 2][0], 2 * points[n - 1][1] - points[n - 2][1]],
+    ];
+    const out = [];
+    const nSeg = pad.length - 3;
+    for (let i = 0; i < nSeg; i++) {
+      const [p0, p1, p2, p3] = [pad[i], pad[i + 1], pad[i + 2], pad[i + 3]];
+      const last = i === nSeg - 1;
+      const count = nPerSegment;
+      for (let j = 0; j < count; j++) {
+        if (!last && j === count - 1) continue; // avoid a duplicate point at segment joins
+        const t = j / (count - 1);
+        const t2 = t * t, t3 = t2 * t;
+        const x = 0.5 * ((2 * p1[0]) + (-p0[0] + p2[0]) * t + (2 * p0[0] - 5 * p1[0] + 4 * p2[0] - p3[0]) * t2 + (-p0[0] + 3 * p1[0] - 3 * p2[0] + p3[0]) * t3);
+        const y = 0.5 * ((2 * p1[1]) + (-p0[1] + p2[1]) * t + (2 * p0[1] - 5 * p1[1] + 4 * p2[1] - p3[1]) * t2 + (-p0[1] + 3 * p1[1] - 3 * p2[1] + p3[1]) * t3);
+        out.push([x, y]);
+      }
+    }
+    return out;
+  }
+
   function clip01(points, margin = 0.08) {
     return points.map(([x, y]) => [
       Math.min(1 - margin, Math.max(margin, x)),
@@ -386,7 +422,7 @@
   const canvasEl = document.getElementById("canvas");
   const placeholderEl = document.getElementById("canvas-placeholder");
   const briefEl = document.getElementById("brief");
-  const briefGrammarEl = document.getElementById("brief-grammar");
+  const briefSourceEl = document.getElementById("brief-source");
   const briefBrushEl = document.getElementById("brief-brush");
   const briefStrokesEl = document.getElementById("brief-strokes");
   const briefRobotEl = document.getElementById("brief-robot");
@@ -470,14 +506,21 @@
     return path;
   }
 
-  function renderPainting(strokes, brief, robotKey, answers) {
+  /** Render a composition result, whichever path produced it.
+   * `result` = { strokes, brush, rationale, source, maxStrokes } --
+   * both the real-LLM path and the local deterministic fallback build
+   * this same shape before calling here, so rendering doesn't care which
+   * one ran. */
+  function renderPainting(result, robotKey) {
+    const { strokes, brush, rationale, source } = result;
+    const maxStrokes = result.maxStrokes || MAX_STROKES;
     canvasEl.innerHTML = "";
     placeholderEl.hidden = true;
-    const rng = mulberry32(brief.seed ^ 0x9e3779b9);
+    const rng = mulberry32(hashStr(source + strokes.length));
 
     const strokeDuration = 230;
     strokes.forEach((stroke, i) => {
-      const el = buildStrokeElement(stroke, brief.brush, rng);
+      const el = buildStrokeElement(stroke, brush, rng);
       el.style.opacity = "0";
       el.style.transformOrigin = "50% 50%";
       canvasEl.appendChild(el);
@@ -491,12 +534,12 @@
     });
 
     briefEl.hidden = false;
-    briefGrammarEl.textContent = (STYLES[brief.style] || {}).label || brief.style;
-    briefBrushEl.textContent = (BRUSHES[brief.brush] || {}).label || brief.brush;
-    briefStrokesEl.textContent = `${strokes.length} of ${MAX_STROKES}`;
+    briefSourceEl.textContent = source;
+    briefBrushEl.textContent = (BRUSHES[brush] || {}).label || brush;
+    briefStrokesEl.textContent = `${strokes.length} of ${maxStrokes}`;
     briefRobotEl.textContent = ROBOT_LABELS[robotKey] || robotKey;
     briefPaletteEl.innerHTML = "";
-    brief.palette.forEach((hex) => {
+    [...new Set(strokes.map((s) => s.color))].forEach((hex) => {
       const sw = document.createElement("span");
       sw.className = "swatch";
       sw.style.background = hex;
@@ -504,7 +547,7 @@
       briefPaletteEl.appendChild(sw);
     });
 
-    revealRationale(rationaleFor(answers, brief), strokes.length * strokeDuration);
+    revealRationale(rationale, strokes.length * strokeDuration);
   }
 
   // ---- rationale reveal ("why this painting") ----------------------------
@@ -541,43 +584,105 @@
   // ---- wiring ------------------------------------------------------------
 
   const EXAMPLES = [
-    { color: "teal", city: "Austin", dream: "to make music", mood: "playful", style: "impressionist", brush: "" },
-    { color: "sunset orange", city: "Paris", dream: "to open a bakery", mood: "cozy", style: "modernist", brush: "fine_pen" },
-    { color: "deep purple", city: "Shanghai", dream: "to become a scientist", mood: "determined", style: "ink_wash", brush: "watercolor" },
-    { color: "forest green", city: "Tokyo", dream: "to write a novel", mood: "calm", style: "ink_wash", brush: "" },
-    { color: "blue", city: "Pittsburgh", dream: "to build robots that help people", mood: "curious", style: "modernist", brush: "" },
+    { color: "teal", city: "Austin", dream: "to make music", mood: "playful" },
+    { color: "sunset orange", city: "Paris", dream: "to open a bakery", mood: "cozy" },
+    { color: "deep purple", city: "Shanghai", dream: "to become a scientist", mood: "determined" },
+    { color: "forest green", city: "Tokyo", dream: "to write a novel", mood: "calm" },
+    { color: "blue", city: "Pittsburgh", dream: "to build robots that help people", mood: "curious" },
   ];
 
   const form = document.getElementById("kiosk-form");
+  const statusEl = document.getElementById("kiosk-status");
+  const submitBtn = form.querySelector('button[type="submit"]');
+  const surpriseBtn = document.getElementById("surprise-me");
 
-  function runFromForm() {
-    const styleInput = form.querySelector('input[name="style"]:checked');
-    const answers = {
+  function readAnswers() {
+    return {
       color: form.color.value || "blue",
       city: form.city.value || "a city",
       dream: form.dream.value || "a dream",
       mood: form.mood.value || "",
-      style: styleInput ? styleInput.value : DEFAULT_STYLE,
-      brush: form.brush.value || "",
     };
+  }
+
+  function setStatus(kind, text) {
+    if (!text) {
+      statusEl.hidden = true;
+      statusEl.className = "panel-note small";
+      statusEl.innerHTML = "";
+      return;
+    }
+    statusEl.hidden = false;
+    statusEl.className = "panel-note small" + (kind === "error" ? " error" : "");
+    statusEl.innerHTML = kind === "loading" ? `<span class="spinner"></span><span>${text}</span>` : text;
+  }
+
+  function setBusy(busy) {
+    submitBtn.disabled = busy;
+    surpriseBtn.disabled = busy;
+  }
+
+  /** The real path: ask the Cloudflare Worker (which asks a real Claude
+   * model) to directly author the piece -- every stroke's own points,
+   * color, and weight, the same approach as sim/llm_composer.py. Falls
+   * back to the local deterministic preview, clearly labeled, if the
+   * request fails for any reason (network, rate limit, offline demo). */
+  async function runReal(answers) {
+    setBusy(true);
+    setStatus("loading", "Claude is composing your piece (10-30s)…");
+    try {
+      const resp = await fetch(COMPOSER_API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(answers),
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(data.error || `request failed (${resp.status})`);
+
+      const strokes = data.strokes.map((s, i) => ({
+        name: `stroke_${i}`,
+        color: s.color,
+        width: s.width,
+        points: clip01(catmullRom(s.points, 10)),
+      }));
+      renderPainting(
+        { strokes, brush: data.brush, rationale: data.rationale, source: "Claude", maxStrokes: strokes.length },
+        form.robot.value
+      );
+      setStatus(null);
+    } catch (err) {
+      console.error("Composer API call failed:", err);
+      setStatus("error", `Couldn't reach the model (${err.message}) — showing a quick local preview instead.`);
+      runLocalPreview(answers);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** The fast, free, always-available path: the deterministic
+   * grammar-based composer (sim/composition.py ported to JS), run
+   * entirely client-side. No model call -- clearly labeled as a preview,
+   * not the real thing. */
+  function runLocalPreview(answers) {
     const { strokes, brief } = compose(answers);
-    renderPainting(strokes, brief, form.robot.value, answers);
+    renderPainting(
+      { strokes, brush: brief.brush, rationale: rationaleFor(answers, brief), source: "Local preview (no model call)" },
+      form.robot.value
+    );
   }
 
   form.addEventListener("submit", (e) => {
     e.preventDefault();
-    runFromForm();
+    runReal(readAnswers());
   });
 
-  document.getElementById("surprise-me").addEventListener("click", () => {
+  surpriseBtn.addEventListener("click", () => {
     const ex = EXAMPLES[Math.floor(Math.random() * EXAMPLES.length)];
     form.color.value = ex.color;
     form.city.value = ex.city;
     form.dream.value = ex.dream;
     form.mood.value = ex.mood;
-    form.brush.value = ex.brush;
-    const styleRadio = form.querySelector(`input[name="style"][value="${ex.style}"]`);
-    if (styleRadio) styleRadio.checked = true;
-    runFromForm();
+    setStatus(null);
+    runLocalPreview(readAnswers());
   });
 })();

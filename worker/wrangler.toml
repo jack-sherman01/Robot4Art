@@ -1,0 +1,9 @@
+name = "robot4art-composer"
+main = "src/index.js"
+compatibility_date = "2024-11-01"
+
+# Create with: npx wrangler kv namespace create RATE_LIMIT
+# then paste the returned id below.
+[[kv_namespaces]]
+binding = "RATE_LIMIT"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"

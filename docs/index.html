@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Robot4Art</title>
-<meta name="description" content="Robot4Art: an interactive human-robot co-creation system for live minimalist painting. Answer a few questions, a robot paints the result in under ten strokes.">
+<meta name="description" content="Robot4Art: an interactive human-robot co-creation system for live minimalist painting. Answer a few questions, a real Claude model composes the piece, and a robot paints it.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2245%22 fill=%22%23161513%22/><path d=%22M20 70 L75 30%22 stroke=%22%23E07A3F%22 stroke-width=%226%22 fill=%22none%22 stroke-linecap=%22round%22/></svg>">
 <link rel="stylesheet" href="style.css">
 </head>
@@ -14,7 +14,7 @@
   <div class="hero-inner">
     <p class="eyebrow">Safe AI Lab · CMU &nbsp;×&nbsp; Poke Robotics &nbsp;×&nbsp; LKK Design</p>
     <h1>Robot4Art</h1>
-    <p class="tagline">Tell it a little about yourself. A robot arm paints an original, ten-stroke abstract piece from the answer &mdash; live, in a couple of minutes.</p>
+    <p class="tagline">Tell it a little about yourself. A real Claude model composes an original abstract piece, stroke by stroke, and a robot arm paints it &mdash; live, in a couple of minutes.</p>
     <p class="hero-links">
       <a href="https://github.com/jack-sherman01/Robot4Art" target="_blank" rel="noopener">Source on GitHub</a>
       <span aria-hidden="true">·</span>
@@ -27,10 +27,13 @@
   <section class="panel" id="kiosk">
     <h2>Try the composition step</h2>
     <p class="panel-note">
-      This runs the same deterministic grammar-based composer as
-      <code>sim/composition.py</code>, in your browser &mdash; no server, no
-      model call. It stands in for the vision-language model described in
-      the research proposal; same answers always produce the same artwork.
+      A real Claude model designs the piece live &mdash; every stroke's
+      shape, color, and weight is the model's own choice, not picked from
+      a template (same approach as <code>sim/llm_composer.py</code>, the
+      one behind the Isaac Sim example below). It typically takes 10-30
+      seconds. If the model call fails or you're offline, a fast
+      deterministic local preview takes over instead &mdash; clearly
+      labeled as such.
     </p>
 
     <form id="kiosk-form">
@@ -50,34 +53,6 @@
         <label for="mood">Mood right now <span class="optional">(optional)</span></label>
         <input id="mood" name="mood" type="text" maxlength="40" placeholder="e.g. curious">
       </div>
-      <fieldset class="field style-field">
-        <legend>Style</legend>
-        <label class="style-option">
-          <input type="radio" name="style" value="modernist" checked>
-          <span class="style-name">Modernist Gesture</span>
-          <span class="style-desc">Bold, confident sweeping strokes</span>
-        </label>
-        <label class="style-option">
-          <input type="radio" name="style" value="impressionist">
-          <span class="style-name">Impressionist Bloom</span>
-          <span class="style-desc">Petals of overlapping color dabs</span>
-        </label>
-        <label class="style-option">
-          <input type="radio" name="style" value="ink_wash">
-          <span class="style-name">Ink Wash Minimal</span>
-          <span class="style-desc">Thin, layered, quiet curves</span>
-        </label>
-      </fieldset>
-      <div class="field">
-        <label for="brush">Pen / brush <span class="optional">(optional)</span></label>
-        <select id="brush" name="brush">
-          <option value="">Auto &mdash; matches the style</option>
-          <option value="fine_pen">Fine Pen</option>
-          <option value="marker">Marker</option>
-          <option value="brush">Brush</option>
-          <option value="watercolor">Watercolor Dabs</option>
-        </select>
-      </div>
       <div class="field">
         <label for="robot">Robot platform</label>
         <select id="robot" name="robot">
@@ -91,6 +66,7 @@
         <button type="submit" class="primary">Paint it</button>
         <button type="button" id="surprise-me" class="ghost">Surprise me</button>
       </div>
+      <p class="panel-note small" id="kiosk-status" hidden></p>
     </form>
   </section>
 
@@ -102,7 +78,7 @@
       </div>
     </div>
     <dl class="brief" id="brief" hidden>
-      <div><dt>Style</dt><dd id="brief-grammar">&mdash;</dd></div>
+      <div><dt>Composed by</dt><dd id="brief-source">&mdash;</dd></div>
       <div><dt>Brush</dt><dd id="brief-brush">&mdash;</dd></div>
       <div><dt>Strokes</dt><dd id="brief-strokes">&mdash;</dd></div>
       <div><dt>Robot</dt><dd id="brief-robot">&mdash;</dd></div>
@@ -113,10 +89,10 @@
   <section class="panel" id="rationale-panel">
     <h2>Why this painting</h2>
     <p class="panel-note">
-      A short, template-filled explanation connecting the artwork back to
-      your answers &mdash; revealed as the robot would paint it, stroke by
-      stroke. It stands in for the vision-language model's own explanation
-      in the full proposal; no model call happens here either.
+      The model's own unedited explanation of the piece it just designed
+      &mdash; revealed as the robot would paint it, stroke by stroke. (If
+      the local preview fallback is showing instead, this is a short
+      template-filled stand-in, clearly labeled above.)
     </p>
     <div class="rationale-wrap">
       <p id="rationale-placeholder" class="canvas-overlay-text">Paint something to see why it looks the way it does.</p>
@@ -188,8 +164,8 @@
   <section class="panel" id="how-it-works">
     <h2>How it works</h2>
     <ol class="steps">
-      <li><strong>Kiosk input.</strong> A visitor answers a few short, personal prompts, picks a style and (optionally) a pen/brush tool, and picks a robot platform.</li>
-      <li><strong>Semantic composition.</strong> The answers are composed into an artistic brief &mdash; a palette and a stroke "grammar" tied to the chosen style &mdash; and rendered as an ordered list of &le;10 vector strokes, each drawn with one of a small set of common pen colors &mdash; not custom-mixed paint. The pen/brush tool (fine pen, marker, brush, or watercolor dabs) is a separate choice from style, since the robot's tool holder carries a few distinct tool types, not just colors. This page runs that step directly in JavaScript.</li>
+      <li><strong>Kiosk input.</strong> A visitor answers a few short, personal prompts and picks a robot platform.</li>
+      <li><strong>Semantic composition.</strong> A real Claude model directly authors the piece &mdash; every stroke's own shape, pen color, and weight &mdash; from a small set of common pen colors (not custom-mixed paint) and one brush/tool it also chooses, up to 20 strokes. This page calls a small Cloudflare Worker backend that holds the model API key server-side (see <code>worker/</code>) and makes the real call; if that's unreachable, a fast deterministic local preview (ported from <code>sim/composition.py</code>, no model call) takes over instead, clearly labeled.</li>
       <li><strong>Stroke planning.</strong> Each stroke is a smooth planar curve with a pen-up/pen-down state &mdash; the same representation the robot execution layer consumes.</li>
       <li><strong>Robot-agnostic execution.</strong> The stroke plan is retargeted to the selected robot's task frame and physically executed. Validated so far in simulation (NVIDIA Isaac Sim, Franka arm) &mdash; see <code>sim/</code> in the repository.</li>
     </ol>

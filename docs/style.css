@@ -285,6 +285,27 @@ button.ghost {
 }
 button.ghost:hover { border-color: var(--muted); }
 
+button:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+
+#kiosk-status {
+  margin-top: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+#kiosk-status.error { color: #B3341C; }
+
+.spinner {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+  border-top-color: var(--accent, #C1440E);
+  animation: spin 0.8s linear infinite;
+  flex: none;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
 #canvas-panel {
   display: flex;
   flex-direction: column;

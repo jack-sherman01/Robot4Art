@@ -1,6 +1,11 @@
 # Private project drafts (proposals, internal docs) - never commit
 /private/
 
+# Cloudflare Worker build/auth artifacts
+/worker/node_modules/
+/worker/.wrangler/
+/worker/.dev.vars
+
 # Generated simulation run artifacts (trace logs, plots)
 /sim/output/
 
