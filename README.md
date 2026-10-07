@@ -1,5 +1,7 @@
 # Robot4Art
 
+**[English](README.md) | [中文](README.zh.md)**
+
 An interactive human-robot co-creation system for live minimalist painting.
 
 A visitor answers a few short, personal prompts — favorite color, favorite
