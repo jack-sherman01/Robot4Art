@@ -648,7 +648,7 @@
         points: clip01(catmullRom(s.points, 10)),
       }));
       renderPainting(
-        { strokes, brush: data.brush, rationale: data.rationale, source: "Claude", maxStrokes: strokes.length },
+        { strokes, brush: data.brush, rationale: data.rationale, source: "Robot", maxStrokes: strokes.length },
         form.robot.value
       );
       setStatus(null);
