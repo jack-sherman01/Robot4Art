@@ -597,11 +597,13 @@
   const surpriseBtn = document.getElementById("surprise-me");
 
   function readAnswers() {
+    const styleInput = form.querySelector('input[name="style"]:checked');
     return {
       color: form.color.value || "blue",
       city: form.city.value || "a city",
       dream: form.dream.value || "a dream",
       mood: form.mood.value || "",
+      style: styleInput ? styleInput.value : "",
     };
   }
 

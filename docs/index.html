@@ -30,10 +30,12 @@
       A real Claude model designs the piece live &mdash; every stroke's
       shape, color, and weight is the model's own choice, not picked from
       a template (same approach as <code>sim/llm_composer.py</code>, the
-      one behind the Isaac Sim example below). It typically takes 10-30
-      seconds. If the model call fails or you're offline, a fast
-      deterministic local preview takes over instead &mdash; clearly
-      labeled as such.
+      one behind the Isaac Sim example below). The style lean below is
+      just a nudge passed to the model, not a rigid grammar it fills in.
+      It typically takes 10-30 seconds. If the model call fails or you're
+      offline, a fast deterministic local preview takes over instead
+      &mdash; clearly labeled as such, and the style lean picks its
+      grammar directly there.
     </p>
 
     <form id="kiosk-form">
@@ -53,6 +55,29 @@
         <label for="mood">Mood right now <span class="optional">(optional)</span></label>
         <input id="mood" name="mood" type="text" maxlength="40" placeholder="e.g. curious">
       </div>
+      <fieldset class="field style-field">
+        <legend>Style lean <span class="optional">(optional)</span></legend>
+        <label class="style-option">
+          <input type="radio" name="style" value="" checked>
+          <span class="style-name">Let the model decide</span>
+          <span class="style-desc">No nudge &mdash; fully the model's own call</span>
+        </label>
+        <label class="style-option">
+          <input type="radio" name="style" value="modernist">
+          <span class="style-name">Modernist Gesture</span>
+          <span class="style-desc">Bold, confident sweeping strokes</span>
+        </label>
+        <label class="style-option">
+          <input type="radio" name="style" value="impressionist">
+          <span class="style-name">Impressionist Bloom</span>
+          <span class="style-desc">Petals of overlapping color dabs</span>
+        </label>
+        <label class="style-option">
+          <input type="radio" name="style" value="ink_wash">
+          <span class="style-name">Ink Wash Minimal</span>
+          <span class="style-desc">Thin, layered, quiet curves</span>
+        </label>
+      </fieldset>
       <div class="field">
         <label for="robot">Robot platform</label>
         <select id="robot" name="robot">

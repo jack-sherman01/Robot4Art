@@ -50,6 +50,16 @@ const BRUSH_DESCRIPTIONS = {
   watercolor: "loose overlapping dabs",
 };
 
+// Optional visitor-facing "style lean" -- a soft nudge in the prompt,
+// not a template the model fills in (unlike composition.py's STYLES,
+// which hard-codes a grammar function per style). The model still
+// authors every stroke itself; this just colors its taste.
+const STYLE_HINTS = {
+  modernist: "a bold, confident, architectural feel -- sweeping gestures, strong negative space",
+  impressionist: "a soft, blooming feel -- layered petal-like strokes, gentle overlapping color",
+  ink_wash: "a quiet, minimal feel -- thin layered curves, lots of empty canvas, restraint over bravado",
+};
+
 // Per-IP cooldown and a global daily cap -- this calls a real paid API
 // from a public page, so both exist to bound cost/abuse. Adjust freely;
 // these are deliberately conservative defaults. 60 is Workers KV's own
@@ -85,7 +95,7 @@ The visitor answered a few personal prompts:
 - Favorite city: ${answers.city}
 - Dream/aspiration: ${answers.dream}
 - Mood: ${answers.mood || "(not given)"}
-
+${STYLE_HINTS[answers.style] ? `\nThe visitor leans toward ${STYLE_HINTS[answers.style]}. Let that inform your composition, but still design it yourself -- it's a lean, not a template to fill in.\n` : ""}
 Canvas: a normalized square, x and y both in [0, 1], (0, 0) at the bottom-left. Keep all points within [${CANVAS_MARGIN}, ${1 - CANVAS_MARGIN}] of each axis.
 
 Constraints (the robot physically has these, not a stylistic choice):
