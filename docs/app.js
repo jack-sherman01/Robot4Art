@@ -17,7 +17,7 @@
   // model -- see worker/README.md. The key itself never reaches this
   // file; the worker holds it server-side. Filled in after the worker
   // is deployed (see worker/README.md's deploy steps).
-  const COMPOSER_API_URL = "https://robot4art-composer.YOUR-SUBDOMAIN.workers.dev";
+  const COMPOSER_API_URL = "https://robot4art-composer.robot4art.workers.dev";
 
   const MAX_STROKES = 10;
 

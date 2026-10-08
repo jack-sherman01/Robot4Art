@@ -20,6 +20,11 @@
 const MAX_STROKES = 20;
 const CANVAS_MARGIN = 0.08;
 const MODEL = "claude-sonnet-5";
+// With extended thinking left on, this model burns the whole output
+// budget on internal reasoning and never emits the final JSON (hit
+// stop_reason "max_tokens" with zero text content in testing) --
+// thinking is explicitly disabled below so the full budget goes to the
+// actual answer.
 const MAX_OUTPUT_TOKENS = 2000;
 
 // Mirrors composition.py's STANDARD_PENS -- the robot holds this fixed
@@ -47,8 +52,10 @@ const BRUSH_DESCRIPTIONS = {
 
 // Per-IP cooldown and a global daily cap -- this calls a real paid API
 // from a public page, so both exist to bound cost/abuse. Adjust freely;
-// these are deliberately conservative defaults.
-const PER_IP_COOLDOWN_SECONDS = 25;
+// these are deliberately conservative defaults. 60 is Workers KV's own
+// minimum expirationTtl -- a shorter cooldown would need a timestamp
+// comparison instead of relying on KV's own expiry.
+const PER_IP_COOLDOWN_SECONDS = 60;
 const GLOBAL_DAILY_CAP = 150;
 
 function corsHeaders(origin) {
@@ -99,6 +106,29 @@ Respond with ONLY a single JSON object, no markdown fences, no other text:
   ],
   "rationale": "2-4 sentences, first person plural 'we', explaining the actual composition you designed and how it connects to the visitor's specific answers"
 }`;
+}
+
+/** Parse the model's JSON response, tolerating a markdown code fence
+ * around it (the prompt asks for none, but models sometimes add one
+ * anyway) and falling back to grabbing the first {...} block. */
+function extractJson(text) {
+  let t = text.trim();
+  const fenceMatch = t.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/);
+  if (fenceMatch) t = fenceMatch[1].trim();
+  try {
+    return JSON.parse(t);
+  } catch {
+    // fall through
+  }
+  const braceMatch = t.match(/\{[\s\S]*\}/);
+  if (braceMatch) {
+    try {
+      return JSON.parse(braceMatch[0]);
+    } catch {
+      // fall through
+    }
+  }
+  return null;
 }
 
 function badRequest(msg) {
@@ -198,6 +228,7 @@ export default {
         body: JSON.stringify({
           model: MODEL,
           max_tokens: MAX_OUTPUT_TOKENS,
+          thinking: { type: "disabled" },
           messages: [{ role: "user", content: prompt }],
         }),
       });
@@ -207,11 +238,10 @@ export default {
         throw Object.assign(new Error(`model API error: ${errText.slice(0, 300)}`), { status: 502 });
       }
       const data = await apiResp.json();
-      const text = (data.content && data.content[0] && data.content[0].text) || "";
-      let inner;
-      try {
-        inner = JSON.parse(text);
-      } catch {
+      const textBlock = (data.content || []).find((b) => b.type === "text");
+      const text = (textBlock && textBlock.text) || "";
+      const inner = extractJson(text);
+      if (!inner) {
         throw Object.assign(new Error("model did not return valid JSON"), { status: 502 });
       }
 
